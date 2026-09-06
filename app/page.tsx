@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type Category = "送禮" | "託買" | "自用";
 
@@ -20,7 +22,24 @@ const initialItems: Item[] = [];
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>(initialItems);
-const [storageReady, setStorageReady] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+  const getUser = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setUser(user);
+    setAuthReady(true);
+  };
+
+  getUser();
+}, []);
 
 useEffect(() => {
   const savedItems = localStorage.getItem("souvenir-items");
@@ -206,9 +225,30 @@ if (!storageReady || !tripReady || !currencyReady) {
             </div>
           </div>
 
-          <button className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">
-            登入
-          </button>
+         {!authReady ? (
+  <div className="h-9 w-16 animate-pulse rounded-full bg-slate-200" />
+) : user ? (
+  <button
+    type="button"
+    onClick={async () => {
+      await supabase.auth.signOut();
+      setUser(null);
+    }}
+    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+  >
+    登出
+  </button>
+) : (
+  <button
+    type="button"
+    onClick={() => {
+      window.location.href = "/login";
+    }}
+    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+  >
+    登入
+  </button>
+)}
         </div>
       </header>
 
