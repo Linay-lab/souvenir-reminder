@@ -7,7 +7,7 @@ import type { User } from "@supabase/supabase-js";
 type Category = "送禮" | "託買" | "自用";
 
 type Item = {
-  id: number;
+  id: string;
   name: string;
   quantity: number;
   forWho: string;
@@ -42,20 +42,76 @@ export default function Home() {
 }, []);
 
 useEffect(() => {
+  if (!authReady || !user) return;
+
+  const loadTrip = async () => {
+    const { data, error } = await supabase
+      .from("trips")
+      .select("*")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("讀取 Supabase 旅程失敗：", error);
+      return;
+    }
+
+    if (data) {
+  setTripId(data.id);
+  setTripName(data.name || "我的旅行");
+  setDestination(data.destination || "");
+  setStartDate(data.start_date || "");
+  setEndDate(data.end_date || "");
+  setCurrency(data.currency || "TWD");
+  setTripReady(true);
+} else {
+  const { data: newTrip, error: insertError } = await supabase
+    .from("trips")
+    .insert({
+      owner_id: user.id,
+      name: tripName,
+      destination: destination || null,
+      start_date: startDate || null,
+      end_date: endDate || null,
+      currency: currency || "TWD",
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error("建立 Supabase 旅程失敗：", insertError);
+    return;
+  }
+
+  setTripId(newTrip.id);
+  setTripReady(true);
+}
+  };
+
+  loadTrip();
+}, [authReady, user]);
+
+useEffect(() => {
   const savedItems = localStorage.getItem("souvenir-items");
 
-  if (savedItems) {
-    setItems(JSON.parse(savedItems));
+  if (!user && savedItems) {
+    try {
+      setItems(JSON.parse(savedItems));
+    } catch {
+      console.log("讀取本機清單失敗");
+    }
   }
 
   setStorageReady(true);
-}, []);
+}, [user]);
 
 useEffect(() => {
-  if (!storageReady) return;
+  if (!storageReady || user) return;
 
   localStorage.setItem("souvenir-items", JSON.stringify(items));
-}, [items, storageReady]);
+}, [items, storageReady, user]);
   const [filter, setFilter] = useState<
     "全部" | "未購買" | "已購買" | Category
   >("全部");
@@ -64,6 +120,38 @@ useEffect(() => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tripReady, setTripReady] = useState(false);
+  const [tripId, setTripId] = useState<string | null>(null);
+  useEffect(() => {
+  if (!tripId) return;
+
+  const loadItems = async () => {
+    const { data, error } = await supabase
+      .from("shopping_items")
+      .select("*")
+      .eq("trip_id", tripId);
+
+    if (error) {
+      console.error("讀取 Supabase 商品失敗：", error);
+      return;
+    }
+
+    const loadedItems: Item[] = (data ?? []).map((row) => ({
+  id: row.id,
+  name: row.name,
+  quantity: row.quantity,
+  forWho: row.recipient || "自己",
+  category: row.category as Category,
+  place: row.place_name || "尚未設定地點",
+  price: Number(row.price ?? 0),
+  note: row.note || "",
+  bought: row.bought,
+}));
+
+setItems(loadedItems);
+  };
+
+  loadItems();
+}, [tripId]);
   const [showTripEdit, setShowTripEdit] = useState(false);
   const [editTripName, setEditTripName] = useState("");
   const [editDestination, setEditDestination] = useState("");
@@ -71,6 +159,10 @@ useEffect(() => {
   const [editEndDate, setEditEndDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   useEffect(() => {
+  if (!authReady || user) {
+  return;
+}
+
   const savedTrip = localStorage.getItem("souvenir-trip");
 
   if (savedTrip) {
@@ -87,10 +179,10 @@ useEffect(() => {
   }
 
   setTripReady(true);
-}, []);
+}, [authReady, user]);
 
 useEffect(() => {
-  if (!tripReady) return;
+  if (!tripReady || user) return;
 
   localStorage.setItem(
     "souvenir-trip",
@@ -101,24 +193,28 @@ useEffect(() => {
       endDate,
     })
   );
-}, [tripName, destination, startDate, endDate, tripReady]);
+}, [tripName, destination, startDate, endDate, tripReady, user]);
   const [currency, setCurrency] = useState("");
   const [currencyReady, setCurrencyReady] = useState(false);
   useEffect(() => {
+  if (user) {
+    setCurrencyReady(true);
+    return;
+  }
+
   const savedCurrency = localStorage.getItem("souvenir-currency");
 
   setCurrency(savedCurrency || "");
-
   setCurrencyReady(true);
-}, []);
+}, [user]);
 
 useEffect(() => {
-  if (!currencyReady) return;
+  if (!currencyReady || user) return;
 
   localStorage.setItem("souvenir-currency", currency);
-}, [currency, currencyReady]);
+}, [currency, currencyReady, user]);
   const [showAdd, setShowAdd] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [forWho, setForWho] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -137,16 +233,41 @@ useEffect(() => {
     return items.filter((item) => item.category === filter);
   }, [filter, items]);
 
-  function toggleBought(id: number) {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, bought: !item.bought } : item
-      )
-    );
+ async function toggleBought(id: string) {
+  const item = items.find((item) => item.id === id);
+  if (!item) return;
+
+  const newBought = !item.bought;
+
+  const { error } = await supabase
+    .from("shopping_items")
+    .update({ bought: newBought })
+    .eq("id", id);
+
+  if (error) {
+    console.error("更新購買狀態失敗：", error);
+    return;
   }
-  function deleteItem(id: number) {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+
+  setItems((prev) =>
+    prev.map((item) =>
+      item.id === id ? { ...item, bought: newBought } : item
+    )
+  );
+}
+  async function deleteItem(id: string) {
+  const { error } = await supabase
+    .from("shopping_items")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("刪除商品失敗：", error);
+    return;
   }
+
+  setItems((prev) => prev.filter((item) => item.id !== id));
+}
 function startEdit(item: Item) {
   setEditingId(item.id);
   setName(item.name);
@@ -158,10 +279,30 @@ function startEdit(item: Item) {
   setNote(item.note);
   setShowAdd(true);
 }
-  function addItem() {
+  async function addItem() {
     if (!name.trim()) return;
 
-    if (editingId !== null) {
+ if (editingId !== null) {
+  const updatedItem = {
+    name,
+    quantity,
+    recipient: forWho || "自己",
+    category,
+    place_name: place || "尚未設定地點",
+    price: price === "" ? 0 : price,
+    note,
+  };
+
+  const { error } = await supabase
+    .from("shopping_items")
+    .update(updatedItem)
+    .eq("id", editingId);
+
+  if (error) {
+    console.error("編輯商品失敗：", JSON.stringify(error, null, 2));
+    return;
+  }
+
   setItems((prev) =>
     prev.map((item) =>
       item.id === editingId
@@ -179,18 +320,44 @@ function startEdit(item: Item) {
     )
   );
 } else {
+
+  if (!user || !tripId) return;
+
+  const { data: newItem, error } = await supabase
+    .from("shopping_items")
+    .insert({
+      trip_id: tripId,
+      created_by: user.id,
+      name,
+      quantity,
+      recipient: forWho || "自己",
+      category,
+      price: price === "" ? 0 : price,
+      currency: currency || null,
+      place_name: place || null,
+      note: note || null,
+      bought: false,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("新增商品失敗：", error);
+    return;
+  }
+
   setItems((prev) => [
     ...prev,
     {
-      id: Date.now(),
-      name,
-      quantity,
-      forWho: forWho || "自己",
-      category,
-      place: place || "尚未設定地點",
-      price: price === "" ? 0 : price,
-      note,
-      bought: false,
+      id: newItem.id,
+      name: newItem.name || "",
+      quantity: newItem.quantity,
+      forWho: newItem.recipient || "自己",
+      category: newItem.category as Category,
+      place: newItem.place_name || "尚未設定地點",
+      price: Number(newItem.price ?? 0),
+      note: newItem.note || "",
+      bought: newItem.bought,
     },
   ]);
 }
@@ -617,7 +784,24 @@ if (!storageReady || !tripReady || !currencyReady) {
 
   <button
     type="button"
-    onClick={() => {
+    onClick={async () => {
+      if (!tripId) return;
+
+const { error } = await supabase
+  .from("trips")
+  .update({
+    name: editTripName,
+    destination: editDestination || null,
+    start_date: editStartDate || null,
+    end_date: editEndDate || null,
+    currency: editCurrency || "TWD",
+  })
+  .eq("id", tripId);
+
+if (error) {
+  console.error("更新旅程失敗：", JSON.stringify(error, null, 2));
+  return;
+}
       setTripName(editTripName);
       setDestination(editDestination);
       setStartDate(editStartDate);

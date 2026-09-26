@@ -56,7 +56,28 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+    async function handleForgotPassword() {
+    setMessage("");
 
+    if (!email.trim()) {
+      setMessage("請先輸入 Email");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: "http://localhost:3000/auth/callback?next=/reset-password",
+      }
+    );
+
+    if (error) {
+      setMessage(`寄送失敗：${error.message}`);
+      return;
+    }
+
+    setMessage("重設密碼信已寄出，請到信箱查看 📩");
+  }
   return (
     <main className="min-h-screen bg-[#f8fafc] px-4 py-10">
       <div className="mx-auto max-w-md">
@@ -134,7 +155,17 @@ export default function LoginPage() {
                 className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-sky-400"
               />
             </div>
-
+            {mode === "login" && (
+  <div className="text-right">
+    <button
+      type="button"
+      onClick={handleForgotPassword}
+      className="text-sm text-slate-500 hover:text-slate-900"
+    >
+      忘記密碼？
+    </button>
+  </div>
+)}
             <button
               type="button"
               onClick={handleSubmit}
