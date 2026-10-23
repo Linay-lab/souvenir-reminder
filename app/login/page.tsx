@@ -165,9 +165,23 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
                   aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm font-medium text-slate-600 hover:text-slate-900"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-2 text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
                 >
-                  {showPassword ? "隱藏" : "顯示"}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {showPassword ? (
+                      <>
+                        <path d="M3 3l18 18" />
+                        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                        <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c5.3 0 9 4.5 10 7a12.9 12.9 0 0 1-3.1 4.2" />
+                        <path d="M6.1 6.1C3.9 7.5 2.5 9.8 2 12c1 2.5 4.7 7 10 7a10.9 10.9 0 0 0 4.1-.8" />
+                      </>
+                    ) : (
+                      <>
+                        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </>
+                    )}
+                  </svg>
                 </button>
               </div>
             </div>
