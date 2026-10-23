@@ -152,9 +152,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="請輸入密碼"
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
+                  autoComplete="off"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSubmit();
                   }}
