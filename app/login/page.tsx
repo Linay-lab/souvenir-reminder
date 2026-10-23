@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -50,7 +51,11 @@ export default function LoginPage() {
       }
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "發生錯誤，請稍後再試"
+        error instanceof Error && error.message === "Invalid login credentials"
+          ? "Email 或密碼錯誤，請重新確認"
+          : error instanceof Error
+            ? error.message
+            : "發生錯誤，請稍後再試"
       );
     } finally {
       setLoading(false);
@@ -133,7 +138,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 autoComplete="email"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-sky-400"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-400"
               />
             </div>
 
@@ -141,19 +146,30 @@ export default function LoginPage() {
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 密碼
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="請輸入密碼"
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmit();
-                }}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-sky-400"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="請輸入密碼"
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit();
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-20 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
+                  aria-pressed={showPassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm font-medium text-slate-600 hover:text-slate-900"
+                >
+                  {showPassword ? "隱藏" : "顯示"}
+                </button>
+              </div>
             </div>
             {mode === "login" && (
   <div className="text-right">
