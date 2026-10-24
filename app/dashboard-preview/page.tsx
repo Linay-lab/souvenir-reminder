@@ -248,6 +248,10 @@ export default function TravelDashboardPreview() {
       if (itemsCheck.error || coverCheck.error) {
         throw new Error("無法確認旅行的關聯資料，已停止刪除以保護原有內容。");
       }
+      const coverFiles = await supabase.storage.from("trip-covers").list(`${userId}/${trip.id}`, { limit: 1 });
+      if (coverFiles.error || (coverFiles.data?.length ?? 0) > 0) {
+        throw new Error("雲端封面檔案尚未確認清空，請先保留這趟旅行。");
+      }
       if ((itemsCheck.count ?? 0) > 0) {
         throw new Error("這趟旅行已有購物清單，為避免資料遺失，目前不允許刪除。");
       }
