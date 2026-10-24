@@ -249,15 +249,15 @@ export default function TravelDashboardPreview() {
       if (itemsCheck.error || coverCheck.error) {
         throw new Error("無法確認旅行的關聯資料，已停止刪除以保護原有內容。");
       }
-      const coverFiles = await supabase.storage.from("trip-covers").list(`${userId}/${trip.id}`, { limit: 1 });
-      if (coverFiles.error || (coverFiles.data?.length ?? 0) > 0) {
-        throw new Error("雲端封面檔案尚未確認清空，請先保留這趟旅行。");
-      }
       if ((itemsCheck.count ?? 0) > 0) {
         throw new Error("這趟旅行已有購物清單，為避免資料遺失，目前不允許刪除。");
       }
       if (coverCheck.data) {
         throw new Error("這趟旅行已有雲端封面，為避免留下未清理的照片，目前不允許刪除。");
+      }
+      const coverFiles = await supabase.storage.from("trip-covers").list(`${userId}/${trip.id}`, { limit: 1 });
+      if (coverFiles.error || (coverFiles.data?.length ?? 0) > 0) {
+        throw new Error("雲端封面檔案尚未確認清空，請先保留這趟旅行。");
       }
       if (!window.confirm(`確定永久刪除「${trip.name || "未命名旅行"}」？\n\n已確認這趟旅行沒有購物清單或雲端封面。刪除後無法復原。`)) return;
       const { data: deleted, error } = await supabase.from("trips").delete()
