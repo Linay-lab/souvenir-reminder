@@ -35,30 +35,38 @@ export default function TravelDashboardPreview() {
     let active = true;
     const supabase = createClient();
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (active && userError) setCoverDiagnostic(`封面讀取：登入檢查失敗：${userError.message}`);
       if (!active) return;
       if (user) {
         setUserId(user.id);
-        const { data: trips } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
+        const { data: trips, error: tripsError } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
           .eq("owner_id", user.id).order("created_at", { ascending: true });
         if (!active) return;
+        if (tripsError) setCoverDiagnostic(`封面讀取：旅行查詢失敗：${tripsError.message}`);
         // Prefer the trip whose cover was already saved, instead of always selecting the oldest trip.
         // The preview does not yet have a trip switcher.
         let data = trips?.[0];
         if (trips?.length) {
-          const { data: savedCovers } = await supabase.from("trip_covers")
+          const { data: savedCovers, error: coversError } = await supabase.from("trip_covers")
             .select("trip_id").in("trip_id", trips.map((trip) => trip.id));
+          if (coversError) setCoverDiagnostic(`封面讀取：封面清單查詢失敗：${coversError.message}`);
+          else if (!savedCovers?.length) setCoverDiagnostic("封面讀取：目前帳號查不到任何已儲存的封面。");
           const coveredTrip = trips.find((trip) => savedCovers?.some((row) => row.trip_id === trip.id));
           if (coveredTrip) data = coveredTrip;
         }
         if (!active) return;
         if (data) {
           setTripId(data.id);
-          const { data: coverRow } = await supabase.from("trip_covers")
+          const { data: coverRow, error: coverRowError } = await supabase.from("trip_covers")
             .select("storage_path,position_x,position_y,zoom").eq("trip_id", data.id).maybeSingle();
+          if (active && coverRowError) setCoverDiagnostic(`封面讀取：封面資料查詢失敗：${coverRowError.message}`);
+          if (active && !coverRow && !coverRowError) setCoverDiagnostic(`封面讀取：旅行 ${data.id.slice(0,8)} 沒有封面紀錄。`);
           if (active && coverRow) {
-            const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
+            const { data: signed, error: signedError } = await supabase.storage.from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
+            if (active && signedError) setCoverDiagnostic(`封面讀取：照片網址產生失敗：${signedError.message}`);
             if (active && signed?.signedUrl) {
+              setCoverDiagnostic("封面讀取：已取得照片網址（診斷版本 2）。");
               setCover(signed.signedUrl);
               setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
               setCoverZoom(Number(coverRow.zoom));
@@ -69,6 +77,7 @@ export default function TravelDashboardPreview() {
           setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
         }
       } else {
+        setCoverDiagnostic("封面讀取：目前沒有登入帳號。");
         try {
           const saved = JSON.parse(localStorage.getItem("souvenir-trip") || "null");
           if (saved) {
