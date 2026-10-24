@@ -241,7 +241,7 @@ export default function TravelDashboardPreview() {
       if (coverCheck.data) {
         throw new Error("這趟旅行已有雲端封面，為避免留下未清理的照片，目前不允許刪除。");
       }
-      if (!window.confirm(`確定刪除「${trip.name || "未命名旅行"}」？此操作無法復原。`)) return;
+      if (!window.confirm(`確定永久刪除「${trip.name || "未命名旅行"}」？\n\n已確認這趟旅行沒有購物清單或雲端封面。刪除後無法復原。`)) return;
       const { data: deleted, error } = await supabase.from("trips").delete()
         .eq("id", trip.id).eq("owner_id", userId).select("id");
       if (!error && (!deleted || deleted.length === 0)) throw new Error("找不到可刪除的旅行，請重新整理。");
