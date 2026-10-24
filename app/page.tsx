@@ -27,6 +27,18 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const supabase = createClient();
+  const [filter, setFilter] = useState<
+    "全部" | "未購買" | "已購買" | Category
+  >("全部");
+  const [tripName, setTripName] = useState("我的旅行");
+  const [destination, setDestination] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [tripReady, setTripReady] = useState(false);
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [currency, setCurrency] = useState("");
+  const [currencyReady, setCurrencyReady] = useState(false);
+
 
   useEffect(() => {
   const getUser = async () => {
@@ -98,12 +110,14 @@ useEffect(() => {
 
   if (!user && savedItems) {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore saved local list after user resolution
       setItems(JSON.parse(savedItems));
     } catch {
       console.log("讀取本機清單失敗");
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mark local storage hydration complete
   setStorageReady(true);
 }, [user]);
 
@@ -112,15 +126,6 @@ useEffect(() => {
 
   localStorage.setItem("souvenir-items", JSON.stringify(items));
 }, [items, storageReady, user]);
-  const [filter, setFilter] = useState<
-    "全部" | "未購買" | "已購買" | Category
-  >("全部");
-  const [tripName, setTripName] = useState("我的旅行");
-  const [destination, setDestination] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [tripReady, setTripReady] = useState(false);
-  const [tripId, setTripId] = useState<string | null>(null);
   useEffect(() => {
   if (!tripId) return;
 
@@ -194,17 +199,18 @@ useEffect(() => {
     })
   );
 }, [tripName, destination, startDate, endDate, tripReady, user]);
-  const [currency, setCurrency] = useState("");
-  const [currencyReady, setCurrencyReady] = useState(false);
   useEffect(() => {
   if (user) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- currency initialization after auth resolution
     setCurrencyReady(true);
     return;
   }
 
   const savedCurrency = localStorage.getItem("souvenir-currency");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize persisted currency
   setCurrency(savedCurrency || "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mark currency initialization complete
   setCurrencyReady(true);
 }, [user]);
 
