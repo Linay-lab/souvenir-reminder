@@ -174,6 +174,7 @@ setItems(loadedItems);
     try {
       const trip = JSON.parse(savedTrip);
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate anonymous trip settings from local storage
       setTripName(trip.tripName || "我的旅行");
       setDestination(trip.destination || "");
       setStartDate(trip.startDate || "");
