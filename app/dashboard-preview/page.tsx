@@ -147,6 +147,7 @@ export default function TravelDashboardPreview() {
     const key = `trip-cover:${userId}:${trip.id}`;
     try {
       const cached = JSON.parse(sessionStorage.getItem(key) || "null");
+      // eslint-disable-next-line react-hooks/purity -- invoked by an async event handler, not during render
       if (cached?.path === record.storage_path && cached?.expiresAt > Date.now() + 60000) {
         setCover(cached.url);
         return;
@@ -160,6 +161,7 @@ export default function TravelDashboardPreview() {
     }
     setCover(data.signedUrl);
     try {
+      // eslint-disable-next-line react-hooks/purity -- invoked by an async event handler, not during render
       sessionStorage.setItem(key, JSON.stringify({ path: record.storage_path, url: data.signedUrl, expiresAt: Date.now() + 3600000 }));
     } catch { /* ignore cache */ }
   }
@@ -290,10 +292,12 @@ export default function TravelDashboardPreview() {
 
   useEffect(() => {
     if (!cover) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset image readiness when source is cleared
       setCoverReady(false);
       return;
     }
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset readiness before loading a different image
     setCoverReady(false);
     const image = new Image();
     image.onload = () => { if (active) setCoverReady(true); };
