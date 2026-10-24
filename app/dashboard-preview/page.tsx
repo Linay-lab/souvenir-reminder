@@ -19,6 +19,10 @@ export default function TravelDashboardPreview() {
   const [dates, setDates] = useState("");
   const [cover, setCover] = useState<string | null>(null);
   const [coverError, setCoverError] = useState("");
+  const [savingCover, setSavingCover] = useState(false);
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const pendingFile = useRef<File | null>(null);
   const [editingCover, setEditingCover] = useState(false);
   const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50 });
   const [coverZoom, setCoverZoom] = useState(100);
@@ -33,10 +37,22 @@ export default function TravelDashboardPreview() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active) return;
       if (user) {
-        const { data } = await supabase.from("trips").select("name,destination,start_date,end_date")
+        setUserId(user.id);
+        const { data } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
           .eq("owner_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
         if (!active) return;
         if (data) {
+          setTripId(data.id);
+          const { data: coverRow } = await supabase.from("trip_covers")
+            .select("storage_path,position_x,position_y,zoom").eq("trip_id", data.id).maybeSingle();
+          if (active && coverRow) {
+            const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
+            if (active && signed?.signedUrl) {
+              setCover(signed.signedUrl);
+              setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
+              setCoverZoom(Number(coverRow.zoom));
+            }
+          }
           setTripName(data.name || "我的旅行");
           setDestination(data.destination || "尚未設定目的地");
           setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
@@ -67,6 +83,7 @@ export default function TravelDashboardPreview() {
       setCoverError("請選擇小於 5 MB 的照片。");
       return;
     }
+    pendingFile.current = file;
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -78,6 +95,47 @@ export default function TravelDashboardPreview() {
     };
     reader.onerror = () => setCoverError("照片讀取失敗，請重試。");
     reader.readAsDataURL(file);
+  }
+
+  async function saveCover() {
+    if (!tripId || !userId) {
+      setCoverError("請先登入並建立旅行，才能把封面儲存到雲端。");
+      setEditingCover(false);
+      return;
+    }
+    setSavingCover(true);
+    setCoverError("");
+    try {
+      const supabase = createClient();
+      let path: string | undefined;
+      if (pendingFile.current) {
+        const file = pendingFile.current;
+        const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type === "image/jpeg" ? "jpg" : null;
+        if (!extension) throw new Error("雲端僅支援 JPG、PNG 或 WebP 圖片。");
+        path = `${userId}/${tripId}/${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage.from("trip-covers").upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("trip_covers").select("storage_path").eq("trip_id", tripId).maybeSingle();
+        if (error) throw error;
+        path = data?.storage_path;
+      }
+      if (!path) throw new Error("請先上傳封面照片。");
+      const { error } = await supabase.from("trip_covers").upsert({
+        trip_id: tripId, owner_id: userId, storage_path: path,
+        position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "trip_id" });
+      if (error) throw error;
+      const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
+      if (signed?.signedUrl) setCover(signed.signedUrl);
+      pendingFile.current = null;
+      setEditingCover(false);
+    } catch (error) {
+      setCoverError(error instanceof Error ? `儲存失敗：${error.message}` : "儲存失敗，請稍後再試。");
+    } finally {
+      setSavingCover(false);
+    }
   }
 
   return (
@@ -158,14 +216,14 @@ export default function TravelDashboardPreview() {
               <input id="cover-zoom" type="range" min="100" max="250" step="5" value={coverZoom} onChange={(e) => setCoverZoom(Number(e.target.value))} className="mt-3 w-full accent-[#173f68]" />
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" onClick={() => { setCoverPosition({ x: 50, y: 50 }); setCoverZoom(100); }} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-medium">重設位置</button>
-                <button type="button" onClick={() => setEditingCover(false)} className="rounded-full bg-[#173f68] px-6 py-2.5 text-sm font-semibold text-white">完成調整</button>
+                <button type="button" onClick={saveCover} disabled={savingCover} className="rounded-full bg-[#173f68] px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingCover ? "儲存中…" : "儲存封面"}</button>
               </div>
-              <p className="mt-3 text-xs text-slate-500">目前為測試版，調整結果尚未儲存到雲端，重新整理後會消失。</p>
+              <p className="mt-3 text-xs text-slate-500">登入後可將封面與調整位置儲存至私人雲端空間。</p>
             </div>
           </div>
         )}
         <div className="mt-2 min-h-5 text-xs text-slate-500">
-          {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "封面上傳目前為介面試用：只會在本次開啟頁面時顯示，尚未儲存到雲端。"}
+          {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "登入並建立旅行後，可儲存封面及調整位置。第一次使用前須先完成 Supabase 資料庫設定。"}
         </div>
 
         <section className="mt-8">
