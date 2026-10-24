@@ -4,6 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 
+type Trip = { id: string; name: string | null; destination: string | null; start_date: string | null; end_date: string | null };
+type CoverRecord = { trip_id: string; storage_path: string; position_x: number; position_y: number; zoom: number };
+type TripForm = { name: string; country: string; city: string; startDate: string; endDate: string };
+const emptyTripForm: TripForm = { name: "", country: "", city: "", startDate: "", endDate: "" };
+const destinationParts = (value: string | null) => {
+  const parts = (value || "").split("・");
+  return { country: parts[0]?.trim() || "", city: parts.slice(1).join("・").trim() };
+};
+
 const features = [
   { icon: "🗓️", name: "行程規劃", detail: "即將推出" },
   { icon: "🛍️", name: "購物清單", detail: "立即使用", href: "/" },
@@ -14,6 +23,13 @@ const features = [
 ];
 
 export default function TravelDashboardPreview() {
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [savedCovers, setSavedCovers] = useState<CoverRecord[]>([]);
+  const [tripForm, setTripForm] = useState<TripForm>(emptyTripForm);
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [showTripForm, setShowTripForm] = useState(false);
+  const [tripBusy, setTripBusy] = useState(false);
+  const [tripError, setTripError] = useState("");
   const [tripName, setTripName] = useState("我的下一趟旅行");
   const [destination, setDestination] = useState("開始規劃你的旅程");
   const [dates, setDates] = useState("");
@@ -30,6 +46,7 @@ export default function TravelDashboardPreview() {
   const dragStart = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const picker = useRef<HTMLInputElement>(null);
+  const tripIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,11 +64,15 @@ export default function TravelDashboardPreview() {
             .eq("owner_id", user.id).order("updated_at", { ascending: false })
         ]);
         if (!active) return;
-        const trips = tripsResult.data ?? [];
-        const covers = coversResult.data ?? [];
+        const trips = (tripsResult.data ?? []) as Trip[];
+        const covers = (coversResult.data ?? []) as CoverRecord[];
+        setTrips(trips);
+        setSavedCovers(covers);
+        if (tripsResult.error) setTripError("無法載入旅行清單，請稍後再試。");
         const coverRow = covers.find((row) => trips.some((trip) => trip.id === row.trip_id));
         const data = trips.find((trip) => trip.id === coverRow?.trip_id) ?? trips[0];
         if (data) {
+          tripIdRef.current = data.id;
           setTripId(data.id);
           setTripName(data.name || "我的旅行");
           setDestination(data.destination || "尚未設定目的地");
@@ -103,6 +124,133 @@ export default function TravelDashboardPreview() {
     })();
     return () => { active = false; };
   }, []);
+
+  async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
+    if (pendingFile.current) {
+      setTripError("請先儲存目前選擇的封面，再切換旅行。");
+      return;
+    }
+    setTripError("");
+    tripIdRef.current = trip.id;
+    setTripId(trip.id);
+    setTripName(trip.name || "我的旅行");
+    setDestination(trip.destination || "尚未設定目的地");
+    setDates([trip.start_date, trip.end_date].filter(Boolean).join(" — "));
+    setCover(null);
+    setCoverPosition({ x: 50, y: 50 });
+    setCoverZoom(100);
+    const record = covers.find((row) => row.trip_id === trip.id);
+    if (!record || !userId) return;
+    setCoverPosition({ x: Number(record.position_x), y: Number(record.position_y) });
+    setCoverZoom(Number(record.zoom));
+    const key = `trip-cover:${userId}:${trip.id}`;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(key) || "null");
+      if (cached?.path === record.storage_path && cached?.expiresAt > Date.now() + 60000) {
+        setCover(cached.url);
+        return;
+      }
+    } catch { /* ignore cache */ }
+    const { data, error } = await createClient().storage.from("trip-covers").createSignedUrl(record.storage_path, 3600);
+    if (tripIdRef.current !== trip.id) return;
+    if (error || !data?.signedUrl) {
+      setCoverError("此趟旅行的封面暫時無法載入。");
+      return;
+    }
+    setCover(data.signedUrl);
+    try {
+      sessionStorage.setItem(key, JSON.stringify({ path: record.storage_path, url: data.signedUrl, expiresAt: Date.now() + 3600000 }));
+    } catch { /* ignore cache */ }
+  }
+
+  function openTripForm(trip?: Trip) {
+    setTripError("");
+    setEditingTripId(trip?.id || null);
+    const parts = destinationParts(trip?.destination || null);
+    setTripForm(trip ? { name: trip.name || "", country: parts.country, city: parts.city, startDate: trip.start_date || "", endDate: trip.end_date || "" } : { ...emptyTripForm });
+    setShowTripForm(true);
+  }
+
+  async function submitTrip(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || tripBusy) return;
+    const name = tripForm.name.trim();
+    const country = tripForm.country.trim();
+    const city = tripForm.city.trim();
+    if (!name || !country) { setTripError("請填寫旅行名稱與國家。"); return; }
+    if (tripForm.startDate && tripForm.endDate && tripForm.endDate < tripForm.startDate) {
+      setTripError("回程日期不可早於出發日期。"); return;
+    }
+    setTripBusy(true);
+    setTripError("");
+    const supabase = createClient();
+    const values = {
+      name, destination: [country, city].filter(Boolean).join("・"),
+      start_date: tripForm.startDate || null, end_date: tripForm.endDate || null
+    };
+    try {
+      if (editingTripId) {
+        const { data, error } = await supabase.from("trips").update(values)
+          .eq("id", editingTripId).eq("owner_id", userId)
+          .select("id,name,destination,start_date,end_date").single();
+        if (error) throw error;
+        setTrips((previous) => previous.map((trip) => trip.id === editingTripId ? data as Trip : trip));
+        if (tripId === editingTripId) {
+          setTripName(data.name || "我的旅行");
+          setDestination(data.destination || "尚未設定目的地");
+          setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
+        }
+      } else {
+        const { data, error } = await supabase.from("trips").insert({ ...values, owner_id: userId })
+          .select("id,name,destination,start_date,end_date").single();
+        if (error) throw error;
+        setTrips((previous) => [...previous, data as Trip]);
+        tripIdRef.current = data.id;
+        setTripId(data.id);
+        setTripName(data.name || "我的旅行");
+        setDestination(data.destination || "尚未設定目的地");
+        setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
+        setCover(null);
+        setCoverPosition({ x: 50, y: 50 });
+        setCoverZoom(100);
+      }
+      setShowTripForm(false);
+    } catch (error) {
+      setTripError(error instanceof Error ? `儲存旅行失敗：${error.message}` : "儲存旅行失敗。");
+    } finally { setTripBusy(false); }
+  }
+
+  async function deleteTrip(trip: Trip) {
+    if (!userId || tripBusy || !window.confirm(`確定刪除「${trip.name || "未命名旅行"}」？此操作無法復原，且可能影響關聯的購物清單。`)) return;
+    setTripBusy(true);
+    setTripError("");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("trips").delete().eq("id", trip.id).eq("owner_id", userId);
+      if (error) throw error;
+      const remaining = trips.filter((item) => item.id !== trip.id);
+      const covers = savedCovers.filter((item) => item.trip_id !== trip.id);
+      setTrips(remaining);
+      setSavedCovers(covers);
+      try { sessionStorage.removeItem(`trip-cover:${userId}:${trip.id}`); } catch { /* ignore */ }
+      if (tripId === trip.id) {
+        const next = remaining[0];
+        if (next) {
+          tripIdRef.current = next.id;
+          await selectTrip(next, covers);
+        } else {
+          tripIdRef.current = null;
+          setTripId(null);
+          setTripName("我的下一趟旅行");
+          setDestination("開始規劃你的旅程");
+          setDates("");
+          setCover(null);
+        }
+      }
+    } catch (error) {
+      setTripError(error instanceof Error ? `刪除失敗：${error.message}` : "刪除失敗，請稍後再試。");
+    } finally { setTripBusy(false); }
+  }
 
   useEffect(() => {
     if (!cover) {
@@ -284,6 +432,46 @@ export default function TravelDashboardPreview() {
             </div>
           </div>
         )}
+        <section className="mt-8" aria-label="我的旅行管理">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-xl font-bold">我的旅行清單</h2><p className="mt-1 text-sm text-slate-500">建立多趟旅程，點選卡片即可切換封面與旅行資訊。</p></div>
+            <button type="button" disabled={!userId || tripBusy} onClick={() => openTripForm()} className="rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">＋ 新增旅行</button>
+          </div>
+          {tripError && <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{tripError}</p>}
+          {!loading && !userId && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600">請先登入，才能建立並管理雲端旅行。</p>}
+          {!loading && userId && trips.length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600">目前沒有旅行，點選「新增旅行」開始規劃吧！</p>}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {trips.map((trip) => (
+              <article key={trip.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${tripId === trip.id ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-100"}`}>
+                <button type="button" onClick={() => { tripIdRef.current = trip.id; void selectTrip(trip); }} className="w-full text-left" aria-current={tripId === trip.id ? "true" : undefined}>
+                  <p className="text-xs font-semibold text-blue-600">{tripId === trip.id ? "目前選擇" : "切換至此旅行"}</p>
+                  <h3 className="mt-2 truncate text-lg font-bold">{trip.name || "我的旅行"}</h3>
+                  <p className="mt-1 text-sm text-slate-600">📍 {trip.destination || "尚未設定目的地"}</p>
+                  <p className="mt-1 text-xs text-slate-500">🗓 {[trip.start_date, trip.end_date].filter(Boolean).join(" — ") || "尚未設定日期"}</p>
+                  <p className="mt-2 text-xs text-slate-400">{savedCovers.some((row) => row.trip_id === trip.id) ? "📷 已設定專屬封面" : "📷 可上傳專屬封面"}</p>
+                </button>
+                <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
+                  <button type="button" disabled={tripBusy} onClick={() => openTripForm(trip)} className="rounded-full border border-slate-200 px-4 py-2 text-xs font-medium disabled:opacity-50">編輯</button>
+                  <button type="button" disabled={tripBusy} onClick={() => void deleteTrip(trip)} className="rounded-full border border-red-100 px-4 py-2 text-xs font-medium text-red-600 disabled:opacity-50">刪除</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        {showTripForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label={editingTripId ? "編輯旅行" : "新增旅行"}>
+          <form onSubmit={submitTrip} className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between"><h2 className="text-xl font-bold">{editingTripId ? "編輯旅行" : "新增旅行"}</h2><button type="button" onClick={() => setShowTripForm(false)} aria-label="關閉視窗">✕</button></div>
+            <label className="block text-sm font-medium">旅行名稱 *<input required maxLength={100} value={tripForm.name} onChange={(e) => setTripForm({ ...tripForm, name: e.target.value })} placeholder="例如：沖繩五日遊" className="mt-1 w-full rounded-xl border border-slate-200 p-3" /></label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-medium">國家 *<input required maxLength={80} value={tripForm.country} onChange={(e) => setTripForm({ ...tripForm, country: e.target.value })} placeholder="日本" className="mt-1 w-full rounded-xl border border-slate-200 p-3" /></label>
+              <label className="block text-sm font-medium">城市<input maxLength={80} value={tripForm.city} onChange={(e) => setTripForm({ ...tripForm, city: e.target.value })} placeholder="沖繩" className="mt-1 w-full rounded-xl border border-slate-200 p-3" /></label>
+              <label className="block text-sm font-medium">出發日期<input type="date" value={tripForm.startDate} onChange={(e) => setTripForm({ ...tripForm, startDate: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3" /></label>
+              <label className="block text-sm font-medium">回程日期<input type="date" min={tripForm.startDate || undefined} value={tripForm.endDate} onChange={(e) => setTripForm({ ...tripForm, endDate: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3" /></label>
+            </div>
+            {tripError && <p role="alert" className="text-sm text-red-600">{tripError}</p>}
+            <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setShowTripForm(false)} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm">取消</button><button type="submit" disabled={tripBusy} className="rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{tripBusy ? "儲存中…" : "儲存旅行"}</button></div>
+          </form>
+        </div>}
         {coverError && <p role="alert" className="mt-2 text-xs text-red-600">{coverError}</p>}
         <section className="mt-8">
           <div className="mb-4"><h2 className="text-xl font-bold">旅行工具箱</h2><p className="mt-1 text-sm text-slate-500">從出發準備到旅途中的每個細節</p></div>
