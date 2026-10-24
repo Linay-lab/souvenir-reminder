@@ -19,7 +19,6 @@ export default function TravelDashboardPreview() {
   const [dates, setDates] = useState("");
   const [cover, setCover] = useState<string | null>(null);
   const [coverError, setCoverError] = useState("");
-  const [coverDiagnostic, setCoverDiagnostic] = useState("");
   const [savingCover, setSavingCover] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -36,22 +35,16 @@ export default function TravelDashboardPreview() {
     const supabase = createClient();
     (async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (active && userError) setCoverDiagnostic(`封面讀取：登入檢查失敗：${userError.message}`);
       if (!active) return;
       if (user) {
         setUserId(user.id);
         const { data: trips, error: tripsError } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
           .eq("owner_id", user.id).order("created_at", { ascending: true });
         if (!active) return;
-        if (tripsError) setCoverDiagnostic(`封面讀取：旅行查詢失敗：${tripsError.message}`);
-        // Prefer the trip whose cover was already saved, instead of always selecting the oldest trip.
-        // The preview does not yet have a trip switcher.
         let data = trips?.[0];
         if (trips?.length) {
           const { data: savedCovers, error: coversError } = await supabase.from("trip_covers")
             .select("trip_id").in("trip_id", trips.map((trip) => trip.id));
-          if (coversError) setCoverDiagnostic(`封面讀取：封面清單查詢失敗：${coversError.message}`);
-          else if (!savedCovers?.length) setCoverDiagnostic("封面讀取：目前帳號查不到任何已儲存的封面。");
           const coveredTrip = trips.find((trip) => savedCovers?.some((row) => row.trip_id === trip.id));
           if (coveredTrip) data = coveredTrip;
         }
@@ -60,13 +53,9 @@ export default function TravelDashboardPreview() {
           setTripId(data.id);
           const { data: coverRow, error: coverRowError } = await supabase.from("trip_covers")
             .select("storage_path,position_x,position_y,zoom").eq("trip_id", data.id).maybeSingle();
-          if (active && coverRowError) setCoverDiagnostic(`封面讀取：封面資料查詢失敗：${coverRowError.message}`);
-          if (active && !coverRow && !coverRowError) setCoverDiagnostic(`封面讀取：旅行 ${data.id.slice(0,8)} 沒有封面紀錄。`);
           if (active && coverRow) {
             const { data: signed, error: signedError } = await supabase.storage.from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
-            if (active && signedError) setCoverDiagnostic(`封面讀取：照片網址產生失敗：${signedError.message}`);
             if (active && signed?.signedUrl) {
-              setCoverDiagnostic("封面讀取：已取得照片網址（診斷版本 2）。");
               setCover(signed.signedUrl);
               setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
               setCoverZoom(Number(coverRow.zoom));
@@ -77,7 +66,6 @@ export default function TravelDashboardPreview() {
           setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
         }
       } else {
-        setCoverDiagnostic("封面讀取：目前沒有登入帳號。");
         try {
           const saved = JSON.parse(localStorage.getItem("souvenir-trip") || "null");
           if (saved) {
@@ -125,7 +113,6 @@ export default function TravelDashboardPreview() {
     }
     setSavingCover(true);
     setCoverError("");
-    setCoverDiagnostic(`階段：準備上傳｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
     let stage = "準備上傳";
     try {
       const supabase = createClient();
@@ -140,7 +127,6 @@ export default function TravelDashboardPreview() {
         if (!extension) throw new Error("雲端僅支援 JPG、PNG 或 WebP 圖片。");
         path = `${userId}/${tripId}/${crypto.randomUUID()}.${extension}`;
         stage = "Storage 上傳";
-        setCoverDiagnostic(`階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}｜格式：${file.type}`);
         const { error } = await supabase.storage.from("trip-covers").upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
       } else {
@@ -150,7 +136,6 @@ export default function TravelDashboardPreview() {
       }
       if (!path) throw new Error("請先上傳封面照片。");
       stage = "trip_covers 資料表寫入";
-      setCoverDiagnostic(`階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
       const { error } = await supabase.from("trip_covers").upsert({
         trip_id: tripId, owner_id: userId, storage_path: path,
         position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom,
@@ -160,10 +145,8 @@ export default function TravelDashboardPreview() {
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
       if (signed?.signedUrl) setCover(signed.signedUrl);
       pendingFile.current = null;
-      setCoverDiagnostic("封面已成功儲存至雲端。");
       setEditingCover(false);
     } catch (error) {
-      setCoverDiagnostic(`失敗階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
       setCoverError(error instanceof Error ? `儲存失敗：${error.message}` : "儲存失敗，請稍後再試。");
     } finally {
       setSavingCover(false);
@@ -254,11 +237,7 @@ export default function TravelDashboardPreview() {
             </div>
           </div>
         )}
-        <div className="mt-2 min-h-5 text-xs text-slate-500">
-          {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "登入並建立旅行後，可儲存封面及調整位置。第一次使用前須先完成 Supabase 資料庫設定。"}
-        </div>
-
-        {coverDiagnostic && <p role="status" className="mt-1 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">{coverDiagnostic}</p>}
+        {coverError && <p role="alert" className="mt-2 text-xs text-red-600">{coverError}</p>}
         <section className="mt-8">
           <div className="mb-4"><h2 className="text-xl font-bold">旅行工具箱</h2><p className="mt-1 text-sm text-slate-500">從出發準備到旅途中的每個細節</p></div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
