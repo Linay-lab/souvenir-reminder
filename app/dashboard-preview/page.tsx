@@ -39,32 +39,55 @@ export default function TravelDashboardPreview() {
       if (!active) return;
       if (user) {
         setUserId(user.id);
-        const { data: trips, error: tripsError } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
-          .eq("owner_id", user.id).order("created_at", { ascending: true });
+        // Load the trip list and its cover metadata in parallel.
+        const [tripsResult, coversResult] = await Promise.all([
+          supabase.from("trips").select("id,name,destination,start_date,end_date")
+            .eq("owner_id", user.id).order("created_at", { ascending: true }),
+          supabase.from("trip_covers").select("trip_id,storage_path,position_x,position_y,zoom")
+            .eq("owner_id", user.id).order("updated_at", { ascending: false })
+        ]);
         if (!active) return;
-        let data = trips?.[0];
-        if (trips?.length) {
-          const { data: savedCovers, error: coversError } = await supabase.from("trip_covers")
-            .select("trip_id").in("trip_id", trips.map((trip) => trip.id));
-          const coveredTrip = trips.find((trip) => savedCovers?.some((row) => row.trip_id === trip.id));
-          if (coveredTrip) data = coveredTrip;
-        }
-        if (!active) return;
+        const trips = tripsResult.data ?? [];
+        const covers = coversResult.data ?? [];
+        const coverRow = covers.find((row) => trips.some((trip) => trip.id === row.trip_id));
+        const data = trips.find((trip) => trip.id === coverRow?.trip_id) ?? trips[0];
         if (data) {
           setTripId(data.id);
-          const { data: coverRow, error: coverRowError } = await supabase.from("trip_covers")
-            .select("storage_path,position_x,position_y,zoom").eq("trip_id", data.id).maybeSingle();
-          if (active && coverRow) {
-            const { data: signed, error: signedError } = await supabase.storage.from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
-            if (active && signed?.signedUrl) {
-              setCover(signed.signedUrl);
-              setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
-              setCoverZoom(Number(coverRow.zoom));
-            }
-          }
           setTripName(data.name || "我的旅行");
           setDestination(data.destination || "尚未設定目的地");
           setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
+          if (coverRow && coverRow.trip_id === data.id) {
+            setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
+            setCoverZoom(Number(coverRow.zoom));
+            // Reuse a still-valid private signed URL for instant reloads in this tab.
+            const cacheKey = `trip-cover:${user.id}:${data.id}`;
+            let cached: { path: string; url: string; expiresAt: number } | null = null;
+            try {
+              cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+            } catch { /* stale cache is ignored */ }
+            const isFresh = cached?.path === coverRow.storage_path
+              && typeof cached?.url === "string"
+              && cached.expiresAt > Date.now() + 60_000;
+            if (isFresh && cached) {
+              setCover(cached.url);
+            } else {
+              const { data: signed, error: signedError } = await supabase.storage
+                .from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
+              if (!active) return;
+              if (signed?.signedUrl) {
+                setCover(signed.signedUrl);
+                try {
+                  sessionStorage.setItem(cacheKey, JSON.stringify({
+                    path: coverRow.storage_path,
+                    url: signed.signedUrl,
+                    expiresAt: Date.now() + 3600_000
+                  }));
+                } catch { /* storage may be unavailable */ }
+              } else if (signedError) {
+                setCoverError("封面載入失敗，請重新整理再試。");
+              }
+            }
+          }
         }
       } else {
         try {
@@ -158,7 +181,16 @@ export default function TravelDashboardPreview() {
       }, { onConflict: "trip_id" });
       if (error) throw error;
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
-      if (signed?.signedUrl) setCover(signed.signedUrl);
+      if (signed?.signedUrl) {
+        setCover(signed.signedUrl);
+        try {
+          sessionStorage.setItem(`trip-cover:${userId}:${tripId}`, JSON.stringify({
+            path,
+            url: signed.signedUrl,
+            expiresAt: Date.now() + 3600_000
+          }));
+        } catch { /* storage may be unavailable */ }
+      }
       pendingFile.current = null;
       setEditingCover(false);
     } catch (error) {
