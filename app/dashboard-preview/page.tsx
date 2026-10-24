@@ -18,6 +18,7 @@ export default function TravelDashboardPreview() {
   const [destination, setDestination] = useState("開始規劃你的旅程");
   const [dates, setDates] = useState("");
   const [cover, setCover] = useState<string | null>(null);
+  const [coverReady, setCoverReady] = useState(false);
   const [coverError, setCoverError] = useState("");
   const [savingCover, setSavingCover] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
@@ -79,6 +80,20 @@ export default function TravelDashboardPreview() {
     })();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!cover) {
+      setCoverReady(false);
+      return;
+    }
+    let active = true;
+    setCoverReady(false);
+    const image = new Image();
+    image.onload = () => { if (active) setCoverReady(true); };
+    image.onerror = () => { if (active) setCoverReady(false); };
+    image.src = cover;
+    return () => { active = false; };
+  }, [cover]);
 
   function chooseCover(file?: File) {
     if (!file) return;
@@ -171,11 +186,11 @@ export default function TravelDashboardPreview() {
         </div>
 
         <section className="relative isolate min-h-[310px] overflow-hidden rounded-[28px] bg-[#123c63] text-white shadow-lg md:min-h-[380px]">
-          {cover ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${cover}")`, backgroundPosition: `${coverPosition.x}% ${coverPosition.y}%`, backgroundSize: `${coverZoom}% auto` }} /> :
-            <div className="absolute inset-0 bg-gradient-to-br from-[#073b62] via-[#2b779e] to-[#7bc9cb]">
-              <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-              <div className="absolute bottom-[-90px] right-[12%] h-52 w-[60%] rotate-[-9deg] rounded-[60%] bg-emerald-100/20 blur-xl" />
-            </div>}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#073b62] via-[#2b779e] to-[#7bc9cb]">
+            <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute bottom-[-90px] right-[12%] h-52 w-[60%] rotate-[-9deg] rounded-[60%] bg-emerald-100/20 blur-xl" />
+          </div>
+          {cover && <div className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 ease-out ${coverReady ? "opacity-100" : "opacity-0"}`} style={{ backgroundImage: `url("${cover}")`, backgroundPosition: `${coverPosition.x}% ${coverPosition.y}%`, backgroundSize: `${coverZoom}% auto` }} />}
           <div className="absolute inset-0 bg-gradient-to-r from-[#0b263d]/85 via-[#0b263d]/40 to-transparent" />
           <div className="relative flex min-h-[310px] flex-col justify-between p-6 md:min-h-[380px] md:p-10">
             <div className="flex items-start justify-between gap-3">
