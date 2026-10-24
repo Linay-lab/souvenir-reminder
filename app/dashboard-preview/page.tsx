@@ -39,8 +39,18 @@ export default function TravelDashboardPreview() {
       if (!active) return;
       if (user) {
         setUserId(user.id);
-        const { data } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
-          .eq("owner_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+        const { data: trips } = await supabase.from("trips").select("id,name,destination,start_date,end_date")
+          .eq("owner_id", user.id).order("created_at", { ascending: true });
+        if (!active) return;
+        // Prefer the trip whose cover was already saved, instead of always selecting the oldest trip.
+        // The preview does not yet have a trip switcher.
+        let data = trips?.[0];
+        if (trips?.length) {
+          const { data: savedCovers } = await supabase.from("trip_covers")
+            .select("trip_id").in("trip_id", trips.map((trip) => trip.id));
+          const coveredTrip = trips.find((trip) => savedCovers?.some((row) => row.trip_id === trip.id));
+          if (coveredTrip) data = coveredTrip;
+        }
         if (!active) return;
         if (data) {
           setTripId(data.id);
