@@ -1,0 +1,138 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/utils/supabase/client";
+
+const features = [
+  { icon: "🗓️", name: "行程規劃", detail: "即將推出" },
+  { icon: "🛍️", name: "購物清單", detail: "立即使用", href: "/" },
+  { icon: "📍", name: "景點地圖", detail: "即將推出" },
+  { icon: "✈️", name: "航班住宿", detail: "即將推出" },
+  { icon: "💳", name: "旅費管理", detail: "即將推出" },
+  { icon: "🧳", name: "行李清單", detail: "即將推出" },
+];
+
+export default function TravelDashboardPreview() {
+  const [tripName, setTripName] = useState("我的下一趟旅行");
+  const [destination, setDestination] = useState("開始規劃你的旅程");
+  const [dates, setDates] = useState("");
+  const [cover, setCover] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const picker = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!active) return;
+      if (user) {
+        const { data } = await supabase.from("trips").select("name,destination,start_date,end_date")
+          .eq("owner_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+        if (!active) return;
+        if (data) {
+          setTripName(data.name || "我的旅行");
+          setDestination(data.destination || "尚未設定目的地");
+          setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
+        }
+      } else {
+        try {
+          const saved = JSON.parse(localStorage.getItem("souvenir-trip") || "null");
+          if (saved) {
+            setTripName(saved.tripName || "我的旅行");
+            setDestination(saved.destination || "尚未設定目的地");
+            setDates([saved.startDate, saved.endDate].filter(Boolean).join(" — "));
+          }
+        } catch { /* ignore invalid local preview data */ }
+      }
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, []);
+
+  function chooseCover(file?: File) {
+    if (!file) return;
+    setCoverError("");
+    if (!file.type.startsWith("image/")) {
+      setCoverError("請選擇圖片檔案。");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setCoverError("請選擇小於 5 MB 的照片。");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setCover(reader.result);
+    };
+    reader.onerror = () => setCoverError("照片讀取失敗，請重試。");
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f5f7fb] text-slate-900">
+      <header className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
+          <div>
+            <p className="text-xl font-bold tracking-tight text-[#16385b]">旅購 <span className="text-sm font-normal text-slate-400">Travel Studio</span></p>
+            <p className="mt-1 text-xs text-slate-500">把每一趟旅行，都安排得剛剛好。</p>
+          </div>
+          <Link href="/" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</Link>
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-7 md:px-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div><p className="text-sm font-medium text-[#48739d]">YOUR TRAVEL SPACE</p><h1 className="mt-1 text-2xl font-bold md:text-3xl">我的旅行</h1></div>
+          <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">A＋C 首頁測試版</span>
+        </div>
+
+        <section className="relative isolate min-h-[310px] overflow-hidden rounded-[28px] bg-[#123c63] text-white shadow-lg md:min-h-[380px]">
+          {cover ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${cover}")` }} /> :
+            <div className="absolute inset-0 bg-gradient-to-br from-[#073b62] via-[#2b779e] to-[#7bc9cb]">
+              <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute bottom-[-90px] right-[12%] h-52 w-[60%] rotate-[-9deg] rounded-[60%] bg-emerald-100/20 blur-xl" />
+            </div>}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0b263d]/85 via-[#0b263d]/40 to-transparent" />
+          <div className="relative flex min-h-[310px] flex-col justify-between p-6 md:min-h-[380px] md:p-10">
+            <div className="flex items-start justify-between gap-3">
+              <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs backdrop-blur">✈ 下一趟旅行</span>
+              <div>
+                <input ref={picker} type="file" accept="image/*" className="hidden" onChange={(e) => { chooseCover(e.target.files?.[0]); e.target.value = ""; }} aria-label="選擇旅行封面照片" />
+                <button type="button" onClick={() => picker.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#16385b] shadow-sm hover:bg-blue-50">📷 {cover ? "更換封面" : "上傳封面"}</button>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm text-white/80">每一段旅程，都值得好好收藏</p>
+              <h2 className="max-w-xl text-3xl font-bold leading-tight md:text-5xl">{loading ? "旅程載入中…" : tripName}</h2>
+              <p className="mt-4 text-sm text-white/90">📍 {destination}</p>
+              {dates && <p className="mt-2 text-sm text-white/85">🗓 {dates}</p>}
+              <Link href="/" className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#123c63] hover:bg-blue-50">管理這趟旅行 →</Link>
+            </div>
+          </div>
+        </section>
+        <div className="mt-2 min-h-5 text-xs text-slate-500">
+          {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "封面上傳目前為介面試用：只會在本次開啟頁面時顯示，尚未儲存到雲端。"}
+        </div>
+
+        <section className="mt-8">
+          <div className="mb-4"><h2 className="text-xl font-bold">旅行工具箱</h2><p className="mt-1 text-sm text-slate-500">從出發準備到旅途中的每個細節</p></div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {features.map((feature) => (
+              feature.href ? <Link key={feature.name} href={feature.href} className="group rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <span className="text-3xl">{feature.icon}</span><p className="mt-5 font-semibold">{feature.name}</p><p className="mt-1 text-xs font-medium text-blue-600">{feature.detail} →</p>
+              </Link> : <div key={feature.name} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                <span className="text-3xl">{feature.icon}</span><p className="mt-5 font-semibold">{feature.name}</p><p className="mt-1 text-xs text-slate-400">{feature.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl bg-white p-6 shadow-sm"><p className="text-xs font-semibold tracking-wide text-blue-600">PLAN BETTER</p><h3 className="mt-2 text-xl font-bold">想買的，旅途中別再錯過。</h3><p className="mt-2 text-sm leading-6 text-slate-500">現有購物清單仍然可以正常使用，先收藏想買的東西，再慢慢完善每趟旅程。</p><Link href="/" className="mt-5 inline-flex rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white">開啟購物清單 →</Link></div>
+          <div className="rounded-3xl bg-gradient-to-br from-[#e9f5f7] to-[#edf1ff] p-6"><p className="text-xs font-semibold tracking-wide text-[#397b9a]">COMING SOON</p><h3 className="mt-2 text-xl font-bold">下一站，更多精彩</h3><p className="mt-2 text-sm leading-6 text-slate-600">每日行程、景點地圖、旅費管理與多人協作會逐步加入。現在先體驗新版首頁的風格與操作。</p><div className="mt-5 text-4xl">🌊 ✈️ 🗺️</div></div>
+        </section>
+      </div>
+    </main>
+  );
+}
