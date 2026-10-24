@@ -221,12 +221,30 @@ export default function TravelDashboardPreview() {
   }
 
   async function deleteTrip(trip: Trip) {
-    if (!userId || tripBusy || !window.confirm(`確定刪除「${trip.name || "未命名旅行"}」？此操作無法復原，且可能影響關聯的購物清單。`)) return;
+    if (!userId || tripBusy) return;
     setTripBusy(true);
     setTripError("");
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("trips").delete().eq("id", trip.id).eq("owner_id", userId);
+      // Never delete a trip with shopping items or a cover: its associated
+      // records and private Storage objects need a dedicated cleanup flow.
+      const [itemsCheck, coverCheck] = await Promise.all([
+        supabase.from("shopping_items").select("id", { count: "exact", head: true }).eq("trip_id", trip.id),
+        supabase.from("trip_covers").select("trip_id").eq("trip_id", trip.id).maybeSingle()
+      ]);
+      if (itemsCheck.error || coverCheck.error) {
+        throw new Error("無法確認旅行的關聯資料，已停止刪除以保護原有內容。");
+      }
+      if ((itemsCheck.count ?? 0) > 0) {
+        throw new Error("這趟旅行已有購物清單，為避免資料遺失，目前不允許刪除。");
+      }
+      if (coverCheck.data) {
+        throw new Error("這趟旅行已有雲端封面，為避免留下未清理的照片，目前不允許刪除。");
+      }
+      if (!window.confirm(`確定刪除「${trip.name || "未命名旅行"}」？此操作無法復原。`)) return;
+      const { data: deleted, error } = await supabase.from("trips").delete()
+        .eq("id", trip.id).eq("owner_id", userId).select("id");
+      if (!error && (!deleted || deleted.length === 0)) throw new Error("找不到可刪除的旅行，請重新整理。");
       if (error) throw error;
       const remaining = trips.filter((item) => item.id !== trip.id);
       const covers = savedCovers.filter((item) => item.trip_id !== trip.id);
