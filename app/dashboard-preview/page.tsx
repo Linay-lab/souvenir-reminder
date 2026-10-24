@@ -40,6 +40,7 @@ export default function TravelDashboardPreview() {
   const [tripId, setTripId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const pendingFile = useRef<File | null>(null);
+  const coverSaveLock = useRef(false);
   const [editingCover, setEditingCover] = useState(false);
   const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50 });
   const [coverZoom, setCoverZoom] = useState(100);
@@ -126,8 +127,8 @@ export default function TravelDashboardPreview() {
   }, []);
 
   async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
-    if (pendingFile.current) {
-      setTripError("請先儲存目前選擇的封面，再切換旅行。");
+    if (coverSaveLock.current || savingCover || pendingFile.current) {
+      setTripError("請先完成或儲存目前的封面，再切換旅行。");
       return;
     }
     setTripError("");
@@ -221,7 +222,7 @@ export default function TravelDashboardPreview() {
   }
 
   async function deleteTrip(trip: Trip) {
-    if (!userId || tripBusy || savingCover) return;
+    if (!userId || tripBusy || savingCover || coverSaveLock.current) return;
     if (trip.id === tripId && pendingFile.current) {
       setTripError("這趟旅行有尚未儲存的封面，請先儲存或取消編輯，才能刪除。");
       return;
@@ -332,7 +333,8 @@ export default function TravelDashboardPreview() {
       setEditingCover(false);
       return;
     }
-    if (savingCover || tripBusy) return;
+    if (savingCover || tripBusy || coverSaveLock.current) return;
+    coverSaveLock.current = true;
     setSavingCover(true);
     setCoverError("");
     let uploadedPath: string | null = null;
@@ -397,6 +399,7 @@ export default function TravelDashboardPreview() {
       }
       setCoverError(`儲存失敗：${detail}`);
     } finally {
+      coverSaveLock.current = false;
       setSavingCover(false);
     }
   }
