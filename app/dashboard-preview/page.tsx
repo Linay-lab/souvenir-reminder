@@ -304,9 +304,13 @@ export default function TravelDashboardPreview() {
 
   function chooseCover(file?: File) {
     if (!file) return;
+    if (coverSaveLock.current || savingCover || tripBusy) {
+      setCoverError("目前正在儲存資料，請完成後再選擇照片。");
+      return;
+    }
     setCoverError("");
-    if (!file.type.startsWith("image/")) {
-      setCoverError("請選擇圖片檔案。");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setCoverError("請選擇 JPG、PNG 或 WebP 圖片。");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -316,6 +320,7 @@ export default function TravelDashboardPreview() {
     pendingFile.current = file;
     const reader = new FileReader();
     reader.onload = () => {
+      if (pendingFile.current !== file || coverSaveLock.current) return;
       if (typeof reader.result === "string") {
         setCover(reader.result);
         setCoverPosition({ x: 50, y: 50 });
@@ -323,7 +328,12 @@ export default function TravelDashboardPreview() {
         setEditingCover(true);
       }
     };
-    reader.onerror = () => setCoverError("照片讀取失敗，請重試。");
+    reader.onerror = () => {
+      if (pendingFile.current === file) {
+        pendingFile.current = null;
+        setCoverError("照片讀取失敗，請重試。");
+      }
+    };
     reader.readAsDataURL(file);
   }
 
