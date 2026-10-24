@@ -329,6 +329,7 @@ export default function TravelDashboardPreview() {
       }, { onConflict: "trip_id" });
       if (error) throw error;
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
+      setSavedCovers((previous) => [...previous.filter((item) => item.trip_id !== tripId), { trip_id: tripId, storage_path: path, position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom }]);
       if (signed?.signedUrl) {
         setCover(signed.signedUrl);
         try {
@@ -443,7 +444,7 @@ export default function TravelDashboardPreview() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {trips.map((trip) => (
               <article key={trip.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${tripId === trip.id ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-100"}`}>
-                <button type="button" onClick={() => { tripIdRef.current = trip.id; void selectTrip(trip); }} className="w-full text-left" aria-current={tripId === trip.id ? "true" : undefined}>
+                <button type="button" onClick={() => { void selectTrip(trip); }} className="w-full text-left" aria-current={tripId === trip.id ? "true" : undefined}>
                   <p className="text-xs font-semibold text-blue-600">{tripId === trip.id ? "目前選擇" : "切換至此旅行"}</p>
                   <h3 className="mt-2 truncate text-lg font-bold">{trip.name || "我的旅行"}</h3>
                   <p className="mt-1 text-sm text-slate-600">📍 {trip.destination || "尚未設定目的地"}</p>
