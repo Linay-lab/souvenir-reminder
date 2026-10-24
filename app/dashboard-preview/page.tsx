@@ -328,6 +328,7 @@ export default function TravelDashboardPreview() {
       setEditingCover(false);
       return;
     }
+    if (savingCover || tripBusy) return;
     setSavingCover(true);
     setCoverError("");
     let uploadedPath: string | null = null;
