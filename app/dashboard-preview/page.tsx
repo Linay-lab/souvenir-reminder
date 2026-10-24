@@ -330,7 +330,10 @@ export default function TravelDashboardPreview() {
     }
     setSavingCover(true);
     setCoverError("");
-    let stage = "準備上傳";
+    let uploadedPath: string | null = null;
+    let metadataSaved = false;
+    let previousPath: string | null = null;
+    const targetTripId = tripId;
     try {
       const supabase = createClient();
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
@@ -343,7 +346,7 @@ export default function TravelDashboardPreview() {
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type === "image/jpeg" ? "jpg" : null;
         if (!extension) throw new Error("雲端僅支援 JPG、PNG 或 WebP 圖片。");
         path = `${userId}/${tripId}/${crypto.randomUUID()}.${extension}`;
-        stage = "Storage 上傳";
+        uploadedPath = path;
         const { error } = await supabase.storage.from("trip-covers").upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
       } else {
@@ -352,13 +355,14 @@ export default function TravelDashboardPreview() {
         path = data?.storage_path;
       }
       if (!path) throw new Error("請先上傳封面照片。");
-      stage = "trip_covers 資料表寫入";
+      previousPath = savedCovers.find((item) => item.trip_id === targetTripId)?.storage_path ?? null;
       const { error } = await supabase.from("trip_covers").upsert({
         trip_id: tripId, owner_id: userId, storage_path: path,
         position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom,
         updated_at: new Date().toISOString()
       }, { onConflict: "trip_id" });
       if (error) throw error;
+      metadataSaved = true;
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
       setSavedCovers((previous) => [...previous.filter((item) => item.trip_id !== tripId), { trip_id: tripId, storage_path: path, position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom }]);
       if (signed?.signedUrl) {
@@ -373,6 +377,10 @@ export default function TravelDashboardPreview() {
       }
       pendingFile.current = null;
       setEditingCover(false);
+      if (uploadedPath && previousPath && uploadedPath !== previousPath) {
+        const { error: cleanupError } = await supabase.storage.from("trip-covers").remove([previousPath]);
+        if (cleanupError) setCoverError("新封面已儲存，但舊照片清理失敗。");
+      }
     } catch (error) {
       setCoverError(error instanceof Error ? `儲存失敗：${error.message}` : "儲存失敗，請稍後再試。");
     } finally {
