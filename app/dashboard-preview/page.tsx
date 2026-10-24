@@ -19,6 +19,10 @@ export default function TravelDashboardPreview() {
   const [dates, setDates] = useState("");
   const [cover, setCover] = useState<string | null>(null);
   const [coverError, setCoverError] = useState("");
+  const [editingCover, setEditingCover] = useState(false);
+  const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50 });
+  const [coverZoom, setCoverZoom] = useState(100);
+  const dragStart = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const picker = useRef<HTMLInputElement>(null);
 
@@ -65,7 +69,12 @@ export default function TravelDashboardPreview() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") setCover(reader.result);
+      if (typeof reader.result === "string") {
+        setCover(reader.result);
+        setCoverPosition({ x: 50, y: 50 });
+        setCoverZoom(100);
+        setEditingCover(true);
+      }
     };
     reader.onerror = () => setCoverError("照片讀取失敗，請重試。");
     reader.readAsDataURL(file);
@@ -89,7 +98,7 @@ export default function TravelDashboardPreview() {
         </div>
 
         <section className="relative isolate min-h-[310px] overflow-hidden rounded-[28px] bg-[#123c63] text-white shadow-lg md:min-h-[380px]">
-          {cover ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${cover}")` }} /> :
+          {cover ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${cover}")`, backgroundPosition: `${coverPosition.x}% ${coverPosition.y}%`, backgroundSize: `${coverZoom}% auto` }} /> :
             <div className="absolute inset-0 bg-gradient-to-br from-[#073b62] via-[#2b779e] to-[#7bc9cb]">
               <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
               <div className="absolute bottom-[-90px] right-[12%] h-52 w-[60%] rotate-[-9deg] rounded-[60%] bg-emerald-100/20 blur-xl" />
@@ -100,7 +109,10 @@ export default function TravelDashboardPreview() {
               <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs backdrop-blur">✈ 下一趟旅行</span>
               <div>
                 <input ref={picker} type="file" accept="image/*" className="hidden" onChange={(e) => { chooseCover(e.target.files?.[0]); e.target.value = ""; }} aria-label="選擇旅行封面照片" />
-                <button type="button" onClick={() => picker.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#16385b] shadow-sm hover:bg-blue-50">📷 {cover ? "更換封面" : "上傳封面"}</button>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {cover && <button type="button" onClick={() => setEditingCover(true)} className="rounded-full border border-white/60 bg-slate-900/40 px-4 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-slate-900/60">✥ 調整封面</button>}
+                  <button type="button" onClick={() => picker.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#16385b] shadow-sm hover:bg-blue-50">📷 {cover ? "更換封面" : "上傳封面"}</button>
+                </div>
               </div>
             </div>
             <div>
@@ -112,6 +124,46 @@ export default function TravelDashboardPreview() {
             </div>
           </div>
         </section>
+        {editingCover && cover && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-label="調整旅行封面">
+            <div className="w-full max-w-2xl rounded-3xl bg-white p-5 text-slate-900 shadow-2xl md:p-7">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div><h2 className="text-xl font-bold">調整旅行封面</h2><p className="mt-1 text-sm text-slate-500">用滑鼠或手指拖曳照片，也能使用下方滑桿縮放。</p></div>
+                <button type="button" onClick={() => setEditingCover(false)} className="rounded-full bg-slate-100 px-3 py-2 text-sm" aria-label="關閉調整視窗">✕</button>
+              </div>
+              <div
+                className="relative h-52 cursor-grab touch-none overflow-hidden rounded-2xl bg-slate-200 active:cursor-grabbing md:h-72"
+                style={{ backgroundImage: `url("${cover}")`, backgroundSize: `${coverZoom}% auto`, backgroundPosition: `${coverPosition.x}% ${coverPosition.y}%`, backgroundRepeat: "no-repeat" }}
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  dragStart.current = { x: event.clientX, y: event.clientY, px: coverPosition.x, py: coverPosition.y };
+                }}
+                onPointerMove={(event) => {
+                  if (!dragStart.current) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const dx = (event.clientX - dragStart.current.x) / rect.width * 100;
+                  const dy = (event.clientY - dragStart.current.y) / rect.height * 100;
+                  setCoverPosition({
+                    x: Math.max(0, Math.min(100, dragStart.current.px + dx)),
+                    y: Math.max(0, Math.min(100, dragStart.current.py + dy)),
+                  });
+                }}
+                onPointerUp={() => { dragStart.current = null; }}
+                onPointerCancel={() => { dragStart.current = null; }}
+              >
+                <div className="pointer-events-none absolute inset-0 border-2 border-white/70" />
+                <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white">拖曳移動照片</span>
+              </div>
+              <label htmlFor="cover-zoom" className="mt-5 flex justify-between text-sm font-medium"><span>照片縮放</span><span>{coverZoom}%</span></label>
+              <input id="cover-zoom" type="range" min="100" max="250" step="5" value={coverZoom} onChange={(e) => setCoverZoom(Number(e.target.value))} className="mt-3 w-full accent-[#173f68]" />
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => { setCoverPosition({ x: 50, y: 50 }); setCoverZoom(100); }} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-medium">重設位置</button>
+                <button type="button" onClick={() => setEditingCover(false)} className="rounded-full bg-[#173f68] px-6 py-2.5 text-sm font-semibold text-white">完成調整</button>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">目前為測試版，調整結果尚未儲存到雲端，重新整理後會消失。</p>
+            </div>
+          </div>
+        )}
         <div className="mt-2 min-h-5 text-xs text-slate-500">
           {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "封面上傳目前為介面試用：只會在本次開啟頁面時顯示，尚未儲存到雲端。"}
         </div>
