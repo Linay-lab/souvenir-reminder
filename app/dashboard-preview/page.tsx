@@ -341,6 +341,22 @@ export default function TravelDashboardPreview() {
     reader.readAsDataURL(file);
   }
 
+  async function cancelCoverEdit() {
+    if (coverSaveLock.current || savingCover) return;
+    pendingFile.current = null;
+    dragStart.current = null;
+    setEditingCover(false);
+    setCoverError("");
+    const activeTrip = trips.find((trip) => trip.id === tripId);
+    if (activeTrip) {
+      await selectTrip(activeTrip);
+    } else {
+      setCover(null);
+      setCoverPosition({ x: 50, y: 50 });
+      setCoverZoom(100);
+    }
+  }
+
   async function saveCover() {
     if (!tripId || !userId) {
       setCoverError("請先登入並建立旅行，才能把封面儲存到雲端。");
@@ -467,7 +483,7 @@ export default function TravelDashboardPreview() {
             <div className="w-full max-w-2xl rounded-3xl bg-white p-5 text-slate-900 shadow-2xl md:p-7">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div><h2 className="text-xl font-bold">調整旅行封面</h2><p className="mt-1 text-sm text-slate-500">用滑鼠或手指拖曳照片，也能使用下方滑桿縮放。</p></div>
-                <button type="button" onClick={() => setEditingCover(false)} className="rounded-full bg-slate-100 px-3 py-2 text-sm" aria-label="關閉調整視窗">✕</button>
+                <button type="button" onClick={() => { void cancelCoverEdit(); }} disabled={savingCover} className="rounded-full bg-slate-100 px-3 py-2 text-sm disabled:opacity-50" aria-label="關閉調整視窗">✕</button>
               </div>
               <div
                 className="relative h-52 cursor-grab touch-none overflow-hidden rounded-2xl bg-slate-200 active:cursor-grabbing md:h-72"
