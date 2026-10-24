@@ -221,11 +221,24 @@ export default function TravelDashboardPreview() {
   }
 
   async function deleteTrip(trip: Trip) {
-    if (!userId || tripBusy) return;
+    if (!userId || tripBusy || savingCover) return;
+    if (trip.id === tripId && pendingFile.current) {
+      setTripError("這趟旅行有尚未儲存的封面，請先儲存或取消編輯，才能刪除。");
+      return;
+    }
     setTripBusy(true);
     setTripError("");
     try {
       const supabase = createClient();
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser || currentUser.id !== userId) {
+        throw new Error("無法確認登入身分，已停止刪除。");
+      }
+      const { data: ownedTrip, error: ownerError } = await supabase.from("trips")
+        .select("id").eq("id", trip.id).eq("owner_id", currentUser.id).maybeSingle();
+      if (ownerError || !ownedTrip) {
+        throw new Error("無法確認這趟旅行的擁有權，已停止刪除。");
+      }
       // Never delete a trip with shopping items or a cover: its associated
       // records and private Storage objects need a dedicated cleanup flow.
       const [itemsCheck, coverCheck] = await Promise.all([
