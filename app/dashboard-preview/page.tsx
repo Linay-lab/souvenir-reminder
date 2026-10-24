@@ -19,6 +19,7 @@ export default function TravelDashboardPreview() {
   const [dates, setDates] = useState("");
   const [cover, setCover] = useState<string | null>(null);
   const [coverError, setCoverError] = useState("");
+  const [coverDiagnostic, setCoverDiagnostic] = useState("");
   const [savingCover, setSavingCover] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -105,14 +106,22 @@ export default function TravelDashboardPreview() {
     }
     setSavingCover(true);
     setCoverError("");
+    setCoverDiagnostic(`階段：準備上傳｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
+    let stage = "準備上傳";
     try {
       const supabase = createClient();
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser || currentUser.id !== userId) throw new Error("登入狀態不一致，請重新登入。");
+      const { data: ownedTrip, error: tripError } = await supabase.from("trips").select("id").eq("id", tripId).eq("owner_id", currentUser.id).maybeSingle();
+      if (tripError || !ownedTrip) throw new Error("目前帳號無法確認這筆旅行的擁有權。");
       let path: string | undefined;
       if (pendingFile.current) {
         const file = pendingFile.current;
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type === "image/jpeg" ? "jpg" : null;
         if (!extension) throw new Error("雲端僅支援 JPG、PNG 或 WebP 圖片。");
         path = `${userId}/${tripId}/${crypto.randomUUID()}.${extension}`;
+        stage = "Storage 上傳";
+        setCoverDiagnostic(`階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}｜格式：${file.type}`);
         const { error } = await supabase.storage.from("trip-covers").upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
       } else {
@@ -121,6 +130,8 @@ export default function TravelDashboardPreview() {
         path = data?.storage_path;
       }
       if (!path) throw new Error("請先上傳封面照片。");
+      stage = "trip_covers 資料表寫入";
+      setCoverDiagnostic(`階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
       const { error } = await supabase.from("trip_covers").upsert({
         trip_id: tripId, owner_id: userId, storage_path: path,
         position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom,
@@ -130,8 +141,10 @@ export default function TravelDashboardPreview() {
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
       if (signed?.signedUrl) setCover(signed.signedUrl);
       pendingFile.current = null;
+      setCoverDiagnostic("封面已成功儲存至雲端。");
       setEditingCover(false);
     } catch (error) {
+      setCoverDiagnostic(`失敗階段：${stage}｜帳號：${userId.slice(0, 8)}｜旅行：${tripId.slice(0, 8)}`);
       setCoverError(error instanceof Error ? `儲存失敗：${error.message}` : "儲存失敗，請稍後再試。");
     } finally {
       setSavingCover(false);
@@ -226,6 +239,7 @@ export default function TravelDashboardPreview() {
           {coverError ? <span role="alert" className="text-red-600">{coverError}</span> : "登入並建立旅行後，可儲存封面及調整位置。第一次使用前須先完成 Supabase 資料庫設定。"}
         </div>
 
+        {coverDiagnostic && <p role="status" className="mt-1 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">{coverDiagnostic}</p>}
         <section className="mt-8">
           <div className="mb-4"><h2 className="text-xl font-bold">旅行工具箱</h2><p className="mt-1 text-sm text-slate-500">從出發準備到旅途中的每個細節</p></div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
