@@ -355,19 +355,19 @@ export default function TravelDashboardPreview() {
     try {
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !currentUser || currentUser.id !== userId) throw new Error("登入狀態不一致，請重新登入。");
-      const { data: ownedTrip, error: tripError } = await supabase.from("trips").select("id").eq("id", tripId).eq("owner_id", currentUser.id).maybeSingle();
+      const { data: ownedTrip, error: tripError } = await supabase.from("trips").select("id").eq("id", targetTripId).eq("owner_id", currentUser.id).maybeSingle();
       if (tripError || !ownedTrip) throw new Error("目前帳號無法確認這筆旅行的擁有權。");
       let path: string | undefined;
       if (pendingFile.current) {
         const file = pendingFile.current;
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type === "image/jpeg" ? "jpg" : null;
         if (!extension) throw new Error("雲端僅支援 JPG、PNG 或 WebP 圖片。");
-        path = `${userId}/${tripId}/${crypto.randomUUID()}.${extension}`;
+        path = `${userId}/${targetTripId}/${crypto.randomUUID()}.${extension}`;
         const { error } = await supabase.storage.from("trip-covers").upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
         uploadedPath = path;
       } else {
-        const { data, error } = await supabase.from("trip_covers").select("storage_path").eq("trip_id", tripId).maybeSingle();
+        const { data, error } = await supabase.from("trip_covers").select("storage_path").eq("trip_id", targetTripId).maybeSingle();
         if (error) throw error;
         path = data?.storage_path;
       }
@@ -377,18 +377,18 @@ export default function TravelDashboardPreview() {
       if (previousError) throw previousError;
       previousPath = previousRecord?.storage_path ?? null;
       const { error } = await supabase.from("trip_covers").upsert({
-        trip_id: tripId, owner_id: userId, storage_path: path,
+        trip_id: targetTripId, owner_id: userId, storage_path: path,
         position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom,
         updated_at: new Date().toISOString()
       }, { onConflict: "trip_id" });
       if (error) throw error;
       metadataSaved = true;
       const { data: signed } = await supabase.storage.from("trip-covers").createSignedUrl(path, 3600);
-      setSavedCovers((previous) => [...previous.filter((item) => item.trip_id !== tripId), { trip_id: tripId, storage_path: path, position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom }]);
-      if (signed?.signedUrl) {
+      setSavedCovers((previous) => [...previous.filter((item) => item.trip_id !== targetTripId), { trip_id: targetTripId, storage_path: path, position_x: coverPosition.x, position_y: coverPosition.y, zoom: coverZoom }]);
+      if (signed?.signedUrl && tripIdRef.current === targetTripId) {
         setCover(signed.signedUrl);
         try {
-          sessionStorage.setItem(`trip-cover:${userId}:${tripId}`, JSON.stringify({
+          sessionStorage.setItem(`trip-cover:${userId}:${targetTripId}`, JSON.stringify({
             path,
             url: signed.signedUrl,
             expiresAt: Date.now() + 3600_000
