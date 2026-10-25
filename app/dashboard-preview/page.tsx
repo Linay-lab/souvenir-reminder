@@ -708,6 +708,8 @@ export default function TravelDashboardPreview() {
                     <p className="font-semibold">{row.currency} 預算 {row.amount.toLocaleString()}</p>
                     <button type="button" disabled={budgetBusy} onClick={() => { setBudgetCurrency(row.currency); setBudgetAmount(String(row.amount)); setBudgetError(""); }}
                       className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50">修改預算</button>
+                    <button type="button" disabled={budgetBusy} onClick={() => void deleteBudget(row.currency)}
+                      className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">刪除預算</button>
                   </div>
                   {activeSummary && <div className="mt-4" aria-label={`預算使用比例 ${percentUsed}%`}>
                     <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
