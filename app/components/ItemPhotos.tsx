@@ -36,11 +36,12 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
   }, [itemId, tripId]);
 
   async function upload(file: File) {
-    if (busy) return;
+    if (busy || !ready) { setError("照片功能尚未啟用，請先完成 Supabase 設定。"); return; }
     if (!["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"].includes(file.type) || file.size > 5 * 1024 * 1024) {
       setError("請選擇 JPG、PNG、WebP 或 HEIC 圖片，單張不超過 5 MB。");
       return;
     }
+    if (photos.length >= 10) { setError("每個商品最多 10 張照片。"); return; }
     setBusy(true);
     setError("");
     const supabase = createClient();
@@ -97,8 +98,8 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
         </div>)}
       </div>}
       <label className="mt-2 inline-flex cursor-pointer items-center rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-        {busy ? "處理照片中…" : "＋ 新增商品照片"}
-        <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={busy}
+        {busy ? "處理照片中…" : photos.length >= 10 ? "已達 10 張上限" : "＋ 新增商品照片"}
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={busy || !ready || photos.length >= 10}
           className="sr-only" onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
