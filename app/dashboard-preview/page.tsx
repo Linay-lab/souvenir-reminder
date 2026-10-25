@@ -27,6 +27,13 @@ export default function TravelDashboardPreview() {
   const [savedCovers, setSavedCovers] = useState<CoverRecord[]>([]);
   const [shoppingSummary, setShoppingSummary] = useState<{ tripId: string; total: number; bought: number; amounts: { currency: string; amount: number; purchased: number }[] } | null>(null);
   const [shoppingSummaryError, setShoppingSummaryError] = useState("");
+  const [budgets, setBudgets] = useState<{ tripId: string; currency: string; amount: number }[]>([]);
+  const [budgetCurrency, setBudgetCurrency] = useState("TWD");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetBusy, setBudgetBusy] = useState(false);
+  const [budgetError, setBudgetError] = useState("");
+  const [budgetReadyTripId, setBudgetReadyTripId] = useState<string | null>(null);
+
 
   const [tripForm, setTripForm] = useState<TripForm>(emptyTripForm);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
@@ -170,6 +177,51 @@ export default function TravelDashboardPreview() {
       });
     return () => { active = false; };
   }, [userId, tripId, trips]);
+
+  useEffect(() => {
+    if (!tripId || !userId) return;
+    let active = true;
+    const supabase = createClient();
+    supabase.from("trip_budgets").select("currency,amount").eq("trip_id", tripId)
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setBudgetError("預算功能尚未啟用，請先套用 Supabase 預算資料表設定。");
+          setBudgetReadyTripId(null);
+          return;
+        }
+        setBudgets((previous) => [
+          ...previous.filter((row) => row.tripId !== tripId),
+          ...(data ?? []).map((row) => ({ tripId, currency: row.currency, amount: Number(row.amount) }))
+        ]);
+        setBudgetReadyTripId(tripId);
+        setBudgetError("");
+      });
+    return () => { active = false; };
+  }, [tripId, userId]);
+
+  async function saveBudget(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!tripId || !userId || budgetBusy || budgetReadyTripId !== tripId) return;
+    const amount = Number(budgetAmount);
+    if (!Number.isFinite(amount) || amount < 0 || amount > 999999999999 || !/^\\d+(\\.\\d{1,2})?$/.test(budgetAmount.trim())) {
+      setBudgetError("請輸入有效的預算金額，最多兩位小數。");
+      return;
+    }
+    setBudgetBusy(true);
+    setBudgetError("");
+    const targetTrip = tripId;
+    const supabase = createClient();
+    const { error } = await supabase.from("trip_budgets").upsert({
+      trip_id: targetTrip, owner_id: userId, currency: budgetCurrency, amount
+    }, { onConflict: "trip_id,currency" });
+    if (error) setBudgetError("預算儲存失敗，請稍後再試。");
+    else {
+      setBudgets((previous) => [...previous.filter((row) => !(row.tripId === targetTrip && row.currency === budgetCurrency)), { tripId: targetTrip, currency: budgetCurrency, amount }]);
+      setBudgetAmount("");
+    }
+    setBudgetBusy(false);
+  }
 
   const activeSummary = shoppingSummary?.tripId === tripId ? shoppingSummary : null;
 
@@ -583,6 +635,39 @@ export default function TravelDashboardPreview() {
                 <p className="mt-2 text-xs text-slate-400">依已標記購買的商品估算，並非實際付款紀錄</p>
               </div>}</div>
           </div>
+        </section>}
+        {tripId && <section className="mt-8 rounded-3xl bg-white p-5 shadow-sm" aria-label="旅行購物預算">
+          <h2 className="text-xl font-bold">購物預算管理</h2>
+          <p className="mt-1 text-sm text-slate-500">每趟旅行、每種幣別獨立設定；金額會儲存在帳號中。</p>
+          {budgetError && <p role="alert" className="mt-3 text-sm text-red-600">{budgetError}</p>}
+          {budgetReadyTripId === tripId && <>
+            <form onSubmit={saveBudget} className="mt-4 flex flex-wrap items-end gap-3">
+              <label className="text-sm">幣別
+                <select value={budgetCurrency} onChange={(e) => setBudgetCurrency(e.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  {["TWD","JPY","USD","KRW","EUR","CNY","HKD","THB","SGD"].map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                </select>
+              </label>
+              <label className="min-w-[160px] flex-1 text-sm">預算金額
+                <input type="number" min="0" max="999999999999" step="0.01" value={budgetAmount} onChange={(e) => setBudgetAmount(e.target.value)} required placeholder="輸入預算"
+                  className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2" />
+              </label>
+              <button type="submit" disabled={budgetBusy} className="rounded-xl bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{budgetBusy ? "儲存中…" : "儲存預算"}</button>
+            </form>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {budgets.filter((row) => row.tripId === tripId).map((row) => {
+                const totals = activeSummary?.amounts.find((amount) => amount.currency === row.currency);
+                const planned = totals?.amount ?? 0;
+                const remaining = row.amount - planned;
+                return <div key={row.currency} className="rounded-2xl bg-slate-50 p-4">
+                  <p className="font-semibold">{row.currency} 預算 {row.amount.toLocaleString()}</p>
+                  <p className="mt-2 text-sm text-slate-600">預估購物總額：{activeSummary ? planned.toLocaleString() : "載入中…"}</p>
+                  <p className="mt-1 text-sm text-slate-600">已購買估算：{activeSummary ? (totals?.purchased ?? 0).toLocaleString() : "載入中…"}</p>
+                  <p className={`mt-2 font-bold ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{activeSummary ? (remaining < 0 ? `超出預算 ${Math.abs(remaining).toLocaleString()}` : `剩餘預算 ${remaining.toLocaleString()}`) : "計算中…"}</p>
+                  <p className="mt-2 text-xs text-slate-400">剩餘預算＝預算－全部商品預估金額</p>
+                </div>;
+              })}
+            </div>
+          </>}
         </section>}
         <section className="mt-8" aria-label="我的旅行管理">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
