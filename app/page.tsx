@@ -67,6 +67,16 @@ useEffect(() => {
       : null;
     if (selected?.error) {
       console.error("讀取指定旅程失敗：", selected.error);
+      setListError("讀取指定旅行失敗，請返回旅行首頁重新選擇。");
+      setTripReady(true);
+      setCurrencyReady(true);
+      return;
+    }
+    // A specifically requested trip must never silently fall back to another trip.
+    if (requestedTripId && (!validTripId || !selected?.data)) {
+      setListError("無法開啟指定旅行。請返回旅行首頁重新選擇，避免修改到其他旅行的商品。");
+      setTripReady(true);
+      setCurrencyReady(true);
       return;
     }
     const fallback = selected?.data ? null : await supabase
