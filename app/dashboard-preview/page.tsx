@@ -86,29 +86,30 @@ export default function TravelDashboardPreview() {
           setTripName(data.name || "我的旅行");
           setDestination(data.destination || "尚未設定目的地");
           setDates([data.start_date, data.end_date].filter(Boolean).join(" — "));
-          if (coverRow && coverRow.trip_id === data.id) {
-            setCoverPosition({ x: Number(coverRow.position_x), y: Number(coverRow.position_y) });
-            setCoverZoom(Number(coverRow.zoom));
+          const selectedCover = covers.find((row) => row.trip_id === data.id);
+          if (selectedCover) {
+            setCoverPosition({ x: Number(selectedCover.position_x), y: Number(selectedCover.position_y) });
+            setCoverZoom(Number(selectedCover.zoom));
             // Reuse a still-valid private signed URL for instant reloads in this tab.
             const cacheKey = `trip-cover:${user.id}:${data.id}`;
             let cached: { path: string; url: string; expiresAt: number } | null = null;
             try {
               cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
             } catch { /* stale cache is ignored */ }
-            const isFresh = cached?.path === coverRow.storage_path
+            const isFresh = cached?.path === selectedCover.storage_path
               && typeof cached?.url === "string"
               && cached.expiresAt > Date.now() + 60_000;
             if (isFresh && cached) {
               setCover(cached.url);
             } else {
               const { data: signed, error: signedError } = await supabase.storage
-                .from("trip-covers").createSignedUrl(coverRow.storage_path, 3600);
+                .from("trip-covers").createSignedUrl(selectedCover.storage_path, 3600);
               if (!active) return;
               if (signed?.signedUrl) {
                 setCover(signed.signedUrl);
                 try {
                   sessionStorage.setItem(cacheKey, JSON.stringify({
-                    path: coverRow.storage_path,
+                    path: selectedCover.storage_path,
                     url: signed.signedUrl,
                     expiresAt: Date.now() + 3600_000
                   }));
