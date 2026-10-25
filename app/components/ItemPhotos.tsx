@@ -11,6 +11,7 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -79,6 +80,7 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
       setError("照片刪除失敗，請稍後再試。");
     } else {
       setPhotos((previous) => previous.filter((row) => row.id !== photo.id));
+      setPreviewId((current) => current === photo.id ? null : current);
       const { error: storageError } = await supabase.storage.from(BUCKET).remove([photo.storage_path]);
       if (storageError) setError("照片紀錄已刪除，但雲端檔案清理失敗。");
     }
@@ -89,14 +91,21 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
     <div className="mt-3">
       {photos.length > 0 && <div className="flex flex-wrap gap-2">
         {photos.map((photo) => <div key={photo.id} className="relative">
-          {photo.url ? <a href={photo.url} target="_blank" rel="noopener noreferrer" title="開啟原圖">
+          {photo.url ? <button type="button" onClick={() => setPreviewId(photo.id)} title="放大預覽照片" aria-label="放大預覽照片">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo.url} alt="商品照片" className="h-20 w-20 rounded-xl border border-slate-200 object-cover" />
-          </a> : <div className="h-20 w-20 rounded-xl bg-slate-100" />}
+          </button> : <div className="h-20 w-20 rounded-xl bg-slate-100" />}
           <button type="button" disabled={busy} onClick={() => void remove(photo)}
             aria-label="刪除這張照片" className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-sm text-red-600 shadow disabled:opacity-50">×</button>
         </div>)}
       </div>}
+      {previewId && photos.some((photo) => photo.id === previewId && photo.url) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="照片放大預覽" onClick={() => setPreviewId(null)}>
+          <button type="button" className="absolute right-4 top-4 rounded-full bg-white/20 px-4 py-2 text-xl text-white" aria-label="關閉照片預覽" onClick={() => setPreviewId(null)}>×</button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photos.find((photo) => photo.id === previewId)?.url} alt="商品照片放大預覽" className="max-h-[85vh] max-w-full rounded-xl object-contain" onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
       <label className="mt-2 inline-flex cursor-pointer items-center rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
         {busy ? "處理照片中…" : photos.length >= 10 ? "已達 10 張上限" : "＋ 新增商品照片"}
         <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={busy || !ready || photos.length >= 10}
