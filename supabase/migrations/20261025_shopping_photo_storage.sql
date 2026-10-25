@@ -14,12 +14,12 @@ drop policy if exists "shopping photos read own" on storage.objects;
 create policy "shopping photos read own" on storage.objects for select to authenticated
 using (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(name))[3]
-      and i.trip_id::text = (storage.foldername(name))[2]
+    where i.id::text = (storage.foldername(storage.objects.name))[3]
+      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
       and t.owner_id = auth.uid()
   )
 );
@@ -28,12 +28,12 @@ drop policy if exists "shopping photos upload own" on storage.objects;
 create policy "shopping photos upload own" on storage.objects for insert to authenticated
 with check (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(name))[3]
-      and i.trip_id::text = (storage.foldername(name))[2]
+    where i.id::text = (storage.foldername(storage.objects.name))[3]
+      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
       and t.owner_id = auth.uid()
   )
 );
@@ -42,12 +42,12 @@ drop policy if exists "shopping photos delete own" on storage.objects;
 create policy "shopping photos delete own" on storage.objects for delete to authenticated
 using (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(name))[3]
-      and i.trip_id::text = (storage.foldername(name))[2]
+    where i.id::text = (storage.foldername(storage.objects.name))[3]
+      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
       and t.owner_id = auth.uid()
   )
 );
