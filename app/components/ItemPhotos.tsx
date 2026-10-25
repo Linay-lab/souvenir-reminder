@@ -22,6 +22,7 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
       if (!active) return;
       if (readError) {
         setReady(false);
+        setError("照片功能尚未啟用，請先完成資料表與 Storage 設定。");
         return;
       }
       const results = await Promise.all((data ?? []).map(async (photo) => {
@@ -104,7 +105,7 @@ export default function ItemPhotos({ itemId, tripId, userId }: { itemId: string;
             if (file) void upload(file);
           }} />
       </label>
-      {!ready && photos.length === 0 && <p className="mt-1 text-xs text-slate-400">首次使用照片功能前，需先啟用 Supabase 照片設定。</p>}
+      {!ready && photos.length === 0 && !error && <p className="mt-1 text-xs text-slate-400">尚無照片，首次使用需先啟用 Supabase 照片設定。</p>}
       {error && <p role="alert" className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
