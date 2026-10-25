@@ -352,7 +352,7 @@ export default function TravelDashboardPreview() {
         supabase.from("trip_covers").select("trip_id").eq("trip_id", trip.id).maybeSingle(),
         supabase.from("trip_budgets").select("currency", { count: "exact", head: true }).eq("trip_id", trip.id)
       ]);
-      if (itemsCheck.error || coverCheck.error || budgetCheck.error) {
+      if (itemsCheck.error || coverCheck.error || (budgetCheck.error && budgetCheck.error.code !== "42P01")) {
         throw new Error("無法確認旅行的關聯資料，已停止刪除以保護原有內容。");
       }
       if ((itemsCheck.count ?? 0) > 0) {
