@@ -587,20 +587,20 @@ export default function TravelDashboardPreview() {
       </header>
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-7 md:px-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div><p className="text-sm font-medium text-[#48739d]">YOUR TRAVEL SPACE</p><h1 className="mt-1 text-2xl font-bold md:text-3xl">我的旅行</h1></div>
+          <div><p className="text-sm font-medium text-[#8B796B]">TRAVEL JOURNAL · 旅行手帳</p><h1 className="mt-1 text-2xl font-bold md:text-3xl">把下一站，寫進生活裡 ✈</h1></div>
           <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">旅行手帳風格 · 測試版</span>
         </div>
 
-        <section className="relative isolate min-h-[310px] overflow-hidden rounded-[28px] bg-[#123c63] text-white shadow-lg md:min-h-[380px]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#073b62] via-[#2b779e] to-[#7bc9cb]">
+        <section className="relative isolate min-h-[260px] overflow-hidden rounded-[28px] bg-[#B5CAD4] text-white shadow-md md:min-h-[350px]">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#A5AD96] via-[#B5CAD4] to-[#E5DED3]">
             <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
             <div className="absolute bottom-[-90px] right-[12%] h-52 w-[60%] rotate-[-9deg] rounded-[60%] bg-emerald-100/20 blur-xl" />
           </div>
           {cover && <div className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 ease-out ${coverReady ? "opacity-100" : "opacity-0"}`} style={{ backgroundImage: `url("${cover}")`, backgroundPosition: `${coverPosition.x}% ${coverPosition.y}%`, backgroundSize: `${coverZoom}% auto` }} />}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b263d]/85 via-[#0b263d]/40 to-transparent" />
-          <div className="relative flex min-h-[310px] flex-col justify-between p-6 md:min-h-[380px] md:p-10">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#34423D]/80 via-[#34423D]/30 to-transparent" />
+          <div className="relative flex min-h-[260px] flex-col justify-between p-6 md:min-h-[350px] md:p-10">
             <div className="flex items-start justify-between gap-3">
-              <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs backdrop-blur">✈ 下一趟旅行</span>
+              <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs backdrop-blur">✈ NEXT STOP · 下一站</span>
               <div>
                 <input ref={picker} type="file" accept="image/*" className="hidden" onChange={(e) => { chooseCover(e.target.files?.[0]); e.target.value = ""; }} aria-label="選擇旅行封面照片" />
                 <div className="flex flex-wrap justify-end gap-2">
@@ -610,8 +610,8 @@ export default function TravelDashboardPreview() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm text-white/80">每一段旅程，都值得好好收藏</p>
-              <h2 className="max-w-xl text-3xl font-bold leading-tight md:text-5xl">{loading ? "旅程載入中…" : tripName}</h2>
+              <p className="mb-2 text-sm text-white/80">每一段旅程，都值得好好收藏 · Good trip!</p>
+              <h2 className="max-w-xl text-3xl font-bold leading-tight drop-shadow-sm md:text-5xl">{loading ? "旅程載入中…" : tripName}</h2>
               <p className="mt-4 text-sm text-white/90">📍 {destination}</p>
               {dates && <p className="mt-2 text-sm text-white/85">🗓 {dates}</p>}
               <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#123c63] hover:bg-blue-50">管理這趟旅行 →</a>
@@ -799,7 +799,7 @@ export default function TravelDashboardPreview() {
       </div>
       <nav className="travel-studio-bottom" aria-label="旅購導覽">
         <a href="/dashboard-preview" aria-current="page">⌂<br/>首頁</a>
-        <a href="/travel-studio-demo.html">♡<br/>收藏庫試用</a>
+        <a href="/travel-studio-demo.html">♡<br/>收藏庫</a>
         <a href="/dashboard-preview#my-trips">▤<br/>我的旅行</a>
         <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"}>▣<br/>購物清單</a>
       </nav>
