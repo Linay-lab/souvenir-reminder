@@ -425,6 +425,17 @@ if (!storageReady || !tripReady || !currencyReady) {
     </main>
   );
 }
+  if (user && !tripId) {
+    return (
+      <main className="min-h-screen bg-[#f8fafc] px-6 py-16 text-slate-800">
+        <div className="mx-auto max-w-lg rounded-3xl bg-white p-8 shadow-sm">
+          <h1 className="text-xl font-bold">無法開啟指定旅行</h1>
+          <p role="alert" className="mt-3 text-sm text-red-700">{listError || "旅行尚未載入，請稍後重新整理。"}</p>
+          <a href="/dashboard-preview" className="mt-6 inline-block rounded-full bg-[#173f68] px-5 py-3 text-sm font-semibold text-white">返回旅行首頁</a>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-800">
       <header className="border-b bg-white/90 backdrop-blur">
