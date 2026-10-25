@@ -659,6 +659,16 @@ export default function TravelDashboardPreview() {
               </label>
               <button type="submit" disabled={budgetBusy} className="rounded-xl bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{budgetBusy ? "儲存中…" : "儲存預算"}</button>
             </form>
+            {budgets.filter((row) => row.tripId === tripId).length === 0 && (
+              <p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
+                這趟旅行尚未設定購物預算。選擇幣別並輸入金額，就能開始追蹤。
+              </p>
+            )}
+            {activeSummary && activeSummary.amounts.filter((amount) => amount.amount > 0 && !budgets.some((row) => row.tripId === tripId && row.currency === amount.currency)).length > 0 && (
+              <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                以下幣別已有商品金額，但尚未設定預算：{activeSummary.amounts.filter((amount) => amount.amount > 0 && !budgets.some((row) => row.tripId === tripId && row.currency === amount.currency)).map((amount) => amount.currency).join("、")}。不同幣別不會直接相加。
+              </p>
+            )}
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {budgets.filter((row) => row.tripId === tripId).map((row) => {
                 const totals = activeSummary?.amounts.find((amount) => amount.currency === row.currency);
@@ -686,6 +696,7 @@ export default function TravelDashboardPreview() {
                   </div>}
                   <p className="mt-2 text-sm text-slate-600">預估購物總額：{activeSummary ? planned.toLocaleString() : "載入中…"}</p>
                   <p className="mt-1 text-sm text-slate-600">已購買估算：{activeSummary ? (totals?.purchased ?? 0).toLocaleString() : "載入中…"}</p>
+                  <p className="mt-1 text-sm text-slate-600">待購買估算：{activeSummary ? Math.max(0, planned - (totals?.purchased ?? 0)).toLocaleString() : "載入中…"}</p>
                   <p className={`mt-2 font-bold ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{activeSummary ? (remaining < 0 ? `超出預算 ${Math.abs(remaining).toLocaleString()}` : `剩餘預算 ${remaining.toLocaleString()}`) : "計算中…"}</p>
                   <p className="mt-2 text-xs text-slate-400">剩餘預算＝預算－全部商品預估金額</p>
                 </div>;
