@@ -140,7 +140,11 @@ useEffect(() => {
   localStorage.setItem("souvenir-items", JSON.stringify(items));
 }, [items, storageReady, user]);
   useEffect(() => {
-  if (!tripId) return;
+  if (!tripId || !user) return;
+  let active = true;
+  // Clear the previous trip while the newly selected list loads.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- prevent showing another trip\u0027s items
+  setItems([]);
 
   const loadItems = async () => {
     const { data, error } = await supabase
@@ -148,6 +152,7 @@ useEffect(() => {
       .select("*")
       .eq("trip_id", tripId);
 
+    if (!active) return;
     if (error) {
       console.error("讀取 Supabase 商品失敗：", error);
       return;
@@ -168,8 +173,9 @@ useEffect(() => {
 setItems(loadedItems);
   };
 
-  loadItems();
-}, [tripId]);
+  void loadItems();
+  return () => { active = false; };
+}, [tripId, user]);
   const [showTripEdit, setShowTripEdit] = useState(false);
   const [editTripName, setEditTripName] = useState("");
   const [editDestination, setEditDestination] = useState("");
@@ -262,7 +268,8 @@ useEffect(() => {
   const { error } = await supabase
     .from("shopping_items")
     .update({ bought: newBought })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("更新購買狀態失敗：", error);
@@ -279,7 +286,8 @@ useEffect(() => {
   const { error } = await supabase
     .from("shopping_items")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("刪除商品失敗：", error);
@@ -316,7 +324,8 @@ function startEdit(item: Item) {
   const { error } = await supabase
     .from("shopping_items")
     .update(updatedItem)
-    .eq("id", editingId);
+    .eq("id", editingId)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("編輯商品失敗：", JSON.stringify(error, null, 2));
