@@ -320,6 +320,18 @@ useEffect(() => {
 
   setItems((prev) => prev.filter((item) => item.id !== id));
 }
+function resetItemForm() {
+  setEditingId(null);
+  setName("");
+  setForWho("");
+  setQuantity(1);
+  setCategory("自用");
+  setPrice("");
+  setItemCurrency("");
+  setPlace("");
+  setNote("");
+}
+
 function startEdit(item: Item) {
   setEditingId(item.id);
   setName(item.name);
@@ -421,15 +433,7 @@ function startEdit(item: Item) {
   ]);
 }
 
-    setName("");
-    setForWho("");
-    setQuantity(1);
-    setCategory("自用");
-    setPrice("");
-    setItemCurrency("");
-    setPlace("");
-    setNote("");
-    setEditingId(null);
+    resetItemForm();
     setShowAdd(false);
   }
 if (!storageReady || !tripReady || !currencyReady) {
@@ -628,7 +632,7 @@ if (!storageReady || !tripReady || !currencyReady) {
             </div>
 
             <button
-              onClick={() => setShowAdd(true)}
+              onClick={() => { resetItemForm(); setShowAdd(true); }}
               className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               {items.length === 0 ? "＋ 新增第一個商品" : "＋ 新增商品"}
@@ -940,7 +944,7 @@ if (error) {
 </h2>
 
               <button
-                onClick={() => setShowAdd(false)}
+                onClick={() => { resetItemForm(); setShowAdd(false); }}
                 className="text-xl text-slate-400"
               >
                 ×
