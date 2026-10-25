@@ -257,6 +257,7 @@ useEffect(() => {
   const [quantity, setQuantity] = useState(1);
   const [category, setCategory] = useState<Category>("自用");
   const [price, setPrice] = useState<number | "">("");
+  const [itemCurrency, setItemCurrency] = useState("");
   const [place, setPlace] = useState("");
   const [note, setNote] = useState("");
 
@@ -326,6 +327,7 @@ function startEdit(item: Item) {
   setQuantity(item.quantity);
   setCategory(item.category);
   setPrice(item.price === 0 ? "" : item.price);
+  setItemCurrency(item.currency || currency || "TWD");
   setPlace(item.place === "尚未設定地點" ? "" : item.place);
   setNote(item.note);
   setShowAdd(true);
@@ -341,6 +343,7 @@ function startEdit(item: Item) {
     category,
     place_name: place || "尚未設定地點",
     price: price === "" ? 0 : price,
+    currency: itemCurrency || currency || "TWD",
     note,
   };
 
@@ -367,6 +370,7 @@ function startEdit(item: Item) {
             category,
             place: place || "尚未設定地點",
             price: price === "" ? 0 : price,
+            currency: itemCurrency || currency || "TWD",
             note,
           }
         : item
@@ -386,7 +390,7 @@ function startEdit(item: Item) {
       recipient: forWho || "自己",
       category,
       price: price === "" ? 0 : price,
-      currency: currency || null,
+      currency: itemCurrency || currency || "TWD",
       place_name: place || null,
       note: note || null,
       bought: false,
@@ -422,6 +426,7 @@ function startEdit(item: Item) {
     setQuantity(1);
     setCategory("自用");
     setPrice("");
+    setItemCurrency("");
     setPlace("");
     setNote("");
     setEditingId(null);
@@ -1018,6 +1023,11 @@ if (error) {
   placeholder="例如：1080"
   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-400"
 />
+<label className="mt-4 block text-sm font-medium">商品幣別</label>
+<select value={itemCurrency || currency || "TWD"} onChange={(e) => setItemCurrency(e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3">
+  {["TWD", "JPY", "KRW", "USD", "EUR", "GBP", "THB"].map((code) => <option key={code} value={code}>{code}</option>)}
+</select>
+<p className="mt-1 text-xs text-slate-500">變更幣別不會自動換算金額，請自行確認單價。既有旅行預算不受影響。</p>
 <label className="mt-4 block text-sm font-medium">
   購買地點
 </label>
