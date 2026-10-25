@@ -448,6 +448,9 @@ if (!storageReady || !tripReady || !currencyReady) {
         </div>
       </header>
 
+      {user && <div className="mx-auto max-w-6xl px-5 pt-4">
+        <a href="/dashboard-preview" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#173f68] hover:bg-slate-50">← 返回旅行首頁</a>
+      </div>}
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
         <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-100 via-white to-rose-100 p-6 shadow-sm md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
