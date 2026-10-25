@@ -569,20 +569,26 @@ export default function TravelDashboardPreview() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] text-slate-900">
+    <main className="min-h-screen bg-[#FAF9F6] text-[#34423D]">
+      <style>{`
+        .travel-studio-bottom {position:fixed;z-index:35;bottom:0;left:0;right:0;display:flex;justify-content:space-around;gap:6px;padding:9px 10px max(10px,env(safe-area-inset-bottom));background:#ffffffef;border-top:1px solid #e7e5df;box-shadow:0 -4px 18px #34423d0a}
+        .travel-studio-bottom a {text-align:center;min-width:64px;padding:7px 5px;border-radius:14px;font-size:12px;line-height:1.6}
+        .travel-studio-bottom a[aria-current] {background:#e7f0f4;color:#39718b}
+        @media(min-width:768px){.travel-studio-bottom{max-width:440px;left:50%;transform:translateX(-50%);border:1px solid #e7e5df;border-radius:20px 20px 0 0}}
+      `}</style>
       <header className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <div>
             <p className="text-xl font-bold tracking-tight text-[#16385b]">旅購 <span className="text-sm font-normal text-slate-400">Travel Studio</span></p>
-            <p className="mt-1 text-xs text-slate-500">把每一趟旅行，都安排得剛剛好。</p>
+            <p className="mt-1 text-xs text-slate-500">把喜歡的世界，慢慢收進來。</p>
           </div>
           <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</a>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-7 md:px-6">
+      <div className="mx-auto max-w-6xl px-4 pb-28 pt-7 md:px-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div><p className="text-sm font-medium text-[#48739d]">YOUR TRAVEL SPACE</p><h1 className="mt-1 text-2xl font-bold md:text-3xl">我的旅行</h1></div>
-          <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">A＋C 首頁測試版</span>
+          <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">旅行手帳風格 · 測試版</span>
         </div>
 
         <section className="relative isolate min-h-[310px] overflow-hidden rounded-[28px] bg-[#123c63] text-white shadow-lg md:min-h-[380px]">
@@ -733,7 +739,7 @@ export default function TravelDashboardPreview() {
             </div>
           </>}
         </section>}
-        <section className="mt-8" aria-label="我的旅行管理">
+        <section id="my-trips" className="mt-8 scroll-mt-8" aria-label="我的旅行管理">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-xl font-bold">我的旅行清單</h2><p className="mt-1 text-sm text-slate-500">建立多趟旅程，點選卡片即可切換封面與旅行資訊。</p></div>
             <button type="button" disabled={!userId || tripBusy} onClick={() => openTripForm()} className="rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">＋ 新增旅行</button>
@@ -791,6 +797,12 @@ export default function TravelDashboardPreview() {
           <div className="rounded-3xl bg-gradient-to-br from-[#e9f5f7] to-[#edf1ff] p-6"><p className="text-xs font-semibold tracking-wide text-[#397b9a]">COMING SOON</p><h3 className="mt-2 text-xl font-bold">下一站，更多精彩</h3><p className="mt-2 text-sm leading-6 text-slate-600">每日行程、景點地圖、旅費管理與多人協作會逐步加入。現在先體驗新版首頁的風格與操作。</p><div className="mt-5 text-4xl">🌊 ✈️ 🗺️</div></div>
         </section>
       </div>
+      <nav className="travel-studio-bottom" aria-label="旅購導覽">
+        <a href="/dashboard-preview" aria-current="page">⌂<br/>首頁</a>
+        <a href="/travel-studio-demo.html">♡<br/>收藏庫試用</a>
+        <a href="/dashboard-preview#my-trips">▤<br/>我的旅行</a>
+        <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"}>▣<br/>購物清單</a>
+      </nav>
     </main>
   );
 }
