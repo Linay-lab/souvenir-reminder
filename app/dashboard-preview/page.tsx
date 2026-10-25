@@ -204,7 +204,7 @@ export default function TravelDashboardPreview() {
     event.preventDefault();
     if (!tripId || !userId || budgetBusy || budgetReadyTripId !== tripId) return;
     const amount = Number(budgetAmount);
-    if (!Number.isFinite(amount) || amount < 0 || amount > 999999999999 || !/^\\d+(\\.\\d{1,2})?$/.test(budgetAmount.trim())) {
+    if (!Number.isFinite(amount) || amount < 0 || amount > 999999999999 || !/^\d+(\.\d{1,2})?$/.test(budgetAmount.trim())) {
       setBudgetError("請輸入有效的預算金額，最多兩位小數。");
       return;
     }
@@ -215,10 +215,10 @@ export default function TravelDashboardPreview() {
     const { error } = await supabase.from("trip_budgets").upsert({
       trip_id: targetTrip, owner_id: userId, currency: budgetCurrency, amount
     }, { onConflict: "trip_id,currency" });
-    if (error) setBudgetError("預算儲存失敗，請稍後再試。");
+    if (error && tripIdRef.current === targetTrip) setBudgetError("預算儲存失敗，請稍後再試。");
     else {
       setBudgets((previous) => [...previous.filter((row) => !(row.tripId === targetTrip && row.currency === budgetCurrency)), { tripId: targetTrip, currency: budgetCurrency, amount }]);
-      setBudgetAmount("");
+      if (tripIdRef.current === targetTrip) setBudgetAmount("");
     }
     setBudgetBusy(false);
   }
