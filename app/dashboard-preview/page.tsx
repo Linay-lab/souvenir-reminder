@@ -486,7 +486,7 @@ export default function TravelDashboardPreview() {
             <p className="text-xl font-bold tracking-tight text-[#16385b]">旅購 <span className="text-sm font-normal text-slate-400">Travel Studio</span></p>
             <p className="mt-1 text-xs text-slate-500">把每一趟旅行，都安排得剛剛好。</p>
           </div>
-          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</Link>
+          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</a>
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-7 md:px-6">
