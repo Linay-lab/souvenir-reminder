@@ -739,9 +739,22 @@ if (!storageReady || !tripReady || !currencyReady) {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <CategoryBadge category={item.category} />
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
-                        📍 {item.place}
-                      </span>
+                      {item.place && item.place !== "尚未設定地點" ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([item.place, destination].filter(Boolean).join(" "))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`在 Google 地圖搜尋 ${item.place}（開啟新分頁）`}
+                          title="在 Google 地圖搜尋購買地點"
+                          className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          📍 {item.place} · 查看地圖 ↗
+                        </a>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
+                          📍 尚未設定地點
+                        </span>
+                      )}
 
                     </div>
 
