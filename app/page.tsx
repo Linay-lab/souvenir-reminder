@@ -27,6 +27,8 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const supabase = createClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"default" | "unbought" | "price-high" | "price-low">("default");
   const [filter, setFilter] = useState<
     "全部" | "未購買" | "已購買" | Category
   >("全部");
@@ -260,11 +262,21 @@ useEffect(() => {
   
 
   const filteredItems = useMemo(() => {
-    if (filter === "全部") return items;
-    if (filter === "未購買") return items.filter((item) => !item.bought);
-    if (filter === "已購買") return items.filter((item) => item.bought);
-    return items.filter((item) => item.category === filter);
-  }, [filter, items]);
+    const query = searchQuery.trim().toLocaleLowerCase();
+    const result = items.filter((item) => {
+      const matchesFilter = filter === "全部"
+        || (filter === "未購買" && !item.bought)
+        || (filter === "已購買" && item.bought)
+        || item.category === filter;
+      const matchesSearch = !query || [item.name, item.forWho, item.place, item.note]
+        .some((value) => value.toLocaleLowerCase().includes(query));
+      return matchesFilter && matchesSearch;
+    });
+    if (sortMode === "unbought") return result.sort((a, b) => Number(a.bought) - Number(b.bought));
+    if (sortMode === "price-high") return result.sort((a, b) => b.price * b.quantity - a.price * a.quantity);
+    if (sortMode === "price-low") return result.sort((a, b) => a.price * a.quantity - b.price * b.quantity);
+    return result;
+  }, [filter, items, searchQuery, sortMode]);
 
  async function toggleBought(id: string) {
   const item = items.find((item) => item.id === id);
@@ -615,6 +627,26 @@ if (!storageReady || !tripReady || !currencyReady) {
             </button>
           </div>
         {items.length > 0 && (
+          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="block">
+              <span className="sr-only">搜尋商品、收件人、地點或備註</span>
+              <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="🔎 搜尋商品、收件人、地點、備註"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400" />
+            </label>
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3">
+              <span className="text-xs text-slate-500">排序</span>
+              <select value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}
+                className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none">
+                <option value="default">原本順序</option>
+                <option value="unbought">未購買優先</option>
+                <option value="price-high">小計高到低</option>
+                <option value="price-low">小計低到高</option>
+              </select>
+            </label>
+          </div>
+        )}
+        {items.length > 0 && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
             {(
               [
@@ -640,6 +672,7 @@ if (!storageReady || !tripReady || !currencyReady) {
             ))}
           </div>
         )}
+          {items.length > 0 && filteredItems.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500">找不到符合條件的商品，試著清除搜尋或切換分類。</p>}
           <div className="space-y-3">
             {filteredItems.map((item) => (
               <article
