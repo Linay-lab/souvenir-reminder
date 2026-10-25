@@ -57,13 +57,26 @@ useEffect(() => {
   if (!authReady || !user) return;
 
   const loadTrip = async () => {
-    const { data, error } = await supabase
+    // Select only trips belonging to the signed-in user.
+    const requestedTripId = new URLSearchParams(window.location.search).get("tripId");
+    const validTripId = requestedTripId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedTripId)
+      ? requestedTripId : null;
+    const selected = validTripId
+      ? await supabase.from("trips").select("*").eq("owner_id", user.id).eq("id", validTripId).maybeSingle()
+      : null;
+    if (selected?.error) {
+      console.error("讀取指定旅程失敗：", selected.error);
+      return;
+    }
+    const fallback = selected?.data ? null : await supabase
       .from("trips")
       .select("*")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
+    const data = selected?.data ?? fallback?.data;
+    const error = fallback?.error;
 
     if (error) {
       console.error("讀取 Supabase 旅程失敗：", error);
