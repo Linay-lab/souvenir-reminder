@@ -25,6 +25,9 @@ const features = [
 export default function TravelDashboardPreview() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [savedCovers, setSavedCovers] = useState<CoverRecord[]>([]);
+  const [shoppingSummary, setShoppingSummary] = useState<{ total: number; bought: number; amount: number } | null>(null);
+  const [shoppingSummaryError, setShoppingSummaryError] = useState("");
+
   const [tripForm, setTripForm] = useState<TripForm>(emptyTripForm);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [showTripForm, setShowTripForm] = useState(false);
@@ -125,6 +128,30 @@ export default function TravelDashboardPreview() {
     })();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!userId || !tripId) return;
+    let active = true;
+    const supabase = createClient();
+    supabase.from("shopping_items").select("id,bought,price,quantity")
+      .eq("trip_id", tripId)
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setShoppingSummary(null);
+          setShoppingSummaryError("購物統計暫時無法讀取。");
+          return;
+        }
+        const rows = data ?? [];
+        setShoppingSummary({
+          total: rows.length,
+          bought: rows.filter((item) => item.bought).length,
+          amount: rows.reduce((sum, item) => sum + Number(item.price ?? 0) * Number(item.quantity ?? 1), 0)
+        });
+        setShoppingSummaryError("");
+      });
+    return () => { active = false; };
+  }, [userId, tripId]);
 
   async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
     if (coverSaveLock.current || savingCover || pendingFile.current) {
@@ -518,6 +545,18 @@ export default function TravelDashboardPreview() {
             </div>
           </div>
         )}
+        {tripId && <section className="mt-8" aria-label="目前旅行購物進度">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">這趟旅行的購物進度</h2>
+            <Link href={`/?tripId=${encodeURIComponent(tripId)}`} className="text-sm font-semibold text-blue-700 hover:underline">查看清單 →</Link>
+          </div>
+          {shoppingSummaryError && <p role="alert" className="mb-3 text-sm text-red-600">{shoppingSummaryError}</p>}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">購物品項</p><p className="mt-2 text-2xl font-bold">{shoppingSummary?.total ?? "—"} <span className="text-sm font-normal">項</span></p></div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">已購買進度</p><p className="mt-2 text-2xl font-bold">{shoppingSummary ? `${shoppingSummary.bought} / ${shoppingSummary.total}` : "—"}</p></div>
+            <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm md:col-span-1"><p className="text-sm text-slate-500">商品預估總額</p><p className="mt-2 text-2xl font-bold">{shoppingSummary ? shoppingSummary.amount.toLocaleString() : "—"}</p><p className="mt-1 text-xs text-slate-400">依商品單價 × 數量加總；尚未換算不同幣別</p></div>
+          </div>
+        </section>}
         <section className="mt-8" aria-label="我的旅行管理">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-xl font-bold">我的旅行清單</h2><p className="mt-1 text-sm text-slate-500">建立多趟旅程，點選卡片即可切換封面與旅行資訊。</p></div>
