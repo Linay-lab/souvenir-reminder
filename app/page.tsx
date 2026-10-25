@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import ItemPhotos from "@/app/components/ItemPhotos";
 import type { User } from "@supabase/supabase-js";
 
 type Category = "送禮" | "託買" | "自用";
@@ -769,6 +770,8 @@ if (!storageReady || !tripReady || !currencyReady) {
                       )}
 
                     </div>
+
+                    {user && tripId && <ItemPhotos itemId={item.id} tripId={tripId} userId={user.id} />}
 
                     {item.price > 0 && (
                       <p className="mt-3 text-sm font-semibold text-slate-700">
