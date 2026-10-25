@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 
-type Trip = { id: string; name: string | null; destination: string | null; start_date: string | null; end_date: string | null };
+type Trip = { id: string; currency?: string | null; name: string | null; destination: string | null; start_date: string | null; end_date: string | null };
 type CoverRecord = { trip_id: string; storage_path: string; position_x: number; position_y: number; zoom: number };
 type TripForm = { name: string; country: string; city: string; startDate: string; endDate: string };
 const emptyTripForm: TripForm = { name: "", country: "", city: "", startDate: "", endDate: "" };
@@ -25,7 +25,7 @@ const features = [
 export default function TravelDashboardPreview() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [savedCovers, setSavedCovers] = useState<CoverRecord[]>([]);
-  const [shoppingSummary, setShoppingSummary] = useState<{ total: number; bought: number; amount: number } | null>(null);
+  const [shoppingSummary, setShoppingSummary] = useState<{ tripId: string; total: number; bought: number; amounts: { currency: string; amount: number }[] } | null>(null);
   const [shoppingSummaryError, setShoppingSummaryError] = useState("");
 
   const [tripForm, setTripForm] = useState<TripForm>(emptyTripForm);
@@ -62,7 +62,7 @@ export default function TravelDashboardPreview() {
         setUserId(user.id);
         // Load the trip list and its cover metadata in parallel.
         const [tripsResult, coversResult] = await Promise.all([
-          supabase.from("trips").select("id,name,destination,start_date,end_date")
+          supabase.from("trips").select("id,name,destination,start_date,end_date,currency")
             .eq("owner_id", user.id).order("created_at", { ascending: true }),
           supabase.from("trip_covers").select("trip_id,storage_path,position_x,position_y,zoom")
             .eq("owner_id", user.id).order("updated_at", { ascending: false })
@@ -133,7 +133,7 @@ export default function TravelDashboardPreview() {
     if (!userId || !tripId) return;
     let active = true;
     const supabase = createClient();
-    supabase.from("shopping_items").select("id,bought,price,quantity")
+    supabase.from("shopping_items").select("id,bought,price,quantity,currency")
       .eq("trip_id", tripId)
       .then(({ data, error }) => {
         if (!active) return;
@@ -143,15 +143,24 @@ export default function TravelDashboardPreview() {
           return;
         }
         const rows = data ?? [];
+        const amountsByCurrency = new Map<string, number>();
+        const tripCurrency = trips.find((trip) => trip.id === tripId)?.currency || "TWD";
+        for (const item of rows) {
+          const currency = item.currency || tripCurrency;
+          amountsByCurrency.set(currency, (amountsByCurrency.get(currency) ?? 0) + Number(item.price ?? 0) * Number(item.quantity ?? 1));
+        }
         setShoppingSummary({
+          tripId,
           total: rows.length,
           bought: rows.filter((item) => item.bought).length,
-          amount: rows.reduce((sum, item) => sum + Number(item.price ?? 0) * Number(item.quantity ?? 1), 0)
+          amounts: [...amountsByCurrency].map(([currency, amount]) => ({ currency, amount }))
         });
         setShoppingSummaryError("");
       });
     return () => { active = false; };
-  }, [userId, tripId]);
+  }, [userId, tripId, trips]);
+
+  const activeSummary = shoppingSummary?.tripId === tripId ? shoppingSummary : null;
 
   async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
     if (coverSaveLock.current || savingCover || pendingFile.current) {
@@ -552,9 +561,9 @@ export default function TravelDashboardPreview() {
           </div>
           {shoppingSummaryError && <p role="alert" className="mb-3 text-sm text-red-600">{shoppingSummaryError}</p>}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">購物品項</p><p className="mt-2 text-2xl font-bold">{shoppingSummary?.total ?? "—"} <span className="text-sm font-normal">項</span></p></div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">已購買進度</p><p className="mt-2 text-2xl font-bold">{shoppingSummary ? `${shoppingSummary.bought} / ${shoppingSummary.total}` : "—"}</p></div>
-            <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm md:col-span-1"><p className="text-sm text-slate-500">商品預估總額</p><p className="mt-2 text-2xl font-bold">{shoppingSummary ? shoppingSummary.amount.toLocaleString() : "—"}</p><p className="mt-1 text-xs text-slate-400">依商品單價 × 數量加總；尚未換算不同幣別</p></div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">購物品項</p><p className="mt-2 text-2xl font-bold">{activeSummary?.total ?? "—"} <span className="text-sm font-normal">項</span></p></div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">已購買進度</p><p className="mt-2 text-2xl font-bold">{activeSummary ? `${activeSummary.bought} / ${activeSummary.total}` : "—"}</p></div>
+            <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm md:col-span-1"><p className="text-sm text-slate-500">商品預估總額</p><p className="mt-2 text-2xl font-bold">{activeSummary ? (activeSummary.amounts.length ? activeSummary.amounts.map(({ currency, amount }) => `${currency} ${amount.toLocaleString()}`).join(" / ") : "尚無金額") : "—"}</p><p className="mt-1 text-xs text-slate-400">依商品單價 × 數量加總；不同幣別分開統計</p></div>
           </div>
         </section>}
         <section className="mt-8" aria-label="我的旅行管理">
