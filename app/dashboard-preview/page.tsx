@@ -664,12 +664,26 @@ export default function TravelDashboardPreview() {
                 const totals = activeSummary?.amounts.find((amount) => amount.currency === row.currency);
                 const planned = totals?.amount ?? 0;
                 const remaining = row.amount - planned;
+                const percentUsed = row.amount > 0 ? Math.round((planned / row.amount) * 100) : (planned > 0 ? 100 : 0);
+                const percentBought = planned > 0 ? Math.min(100, ((totals?.purchased ?? 0) / planned) * 100) : 0;
                 return <div key={row.currency} className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold">{row.currency} 預算 {row.amount.toLocaleString()}</p>
                     <button type="button" disabled={budgetBusy} onClick={() => { setBudgetCurrency(row.currency); setBudgetAmount(String(row.amount)); setBudgetError(""); }}
                       className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50">修改預算</button>
                   </div>
+                  {activeSummary && <div className="mt-4" aria-label={`預算使用比例 ${percentUsed}%`}>
+                    <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>預算使用進度</span>
+                      <span className={remaining < 0 ? "font-bold text-red-600" : "font-medium"}>{percentUsed}%</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, percentUsed)}>
+                      <div className={`relative h-full rounded-full ${remaining < 0 ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, percentUsed)}%` }}>
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percentBought}%` }} />
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">綠色：已購買估算　藍色：尚未購買估算　紅色：預估超支</p>
+                  </div>}
                   <p className="mt-2 text-sm text-slate-600">預估購物總額：{activeSummary ? planned.toLocaleString() : "載入中…"}</p>
                   <p className="mt-1 text-sm text-slate-600">已購買估算：{activeSummary ? (totals?.purchased ?? 0).toLocaleString() : "載入中…"}</p>
                   <p className={`mt-2 font-bold ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{activeSummary ? (remaining < 0 ? `超出預算 ${Math.abs(remaining).toLocaleString()}` : `剩餘預算 ${remaining.toLocaleString()}`) : "計算中…"}</p>
