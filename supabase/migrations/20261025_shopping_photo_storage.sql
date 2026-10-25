@@ -5,21 +5,18 @@
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('shopping-item-photos', 'shopping-item-photos', false, 5242880,
   array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
-on conflict (id) do update set
-  public = false,
-  file_size_limit = excluded.file_size_limit,
-  allowed_mime_types = excluded.allowed_mime_types;
+on conflict (id) do nothing;
 
 drop policy if exists "shopping photos read own" on storage.objects;
 create policy "shopping photos read own" on storage.objects for select to authenticated
 using (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
+  and split_part(storage.objects.name, '/', 1) = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(storage.objects.name))[3]
-      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
+    where i.id::text = split_part(storage.objects.name, '/', 3)
+      and i.trip_id::text = split_part(storage.objects.name, '/', 2)
       and t.owner_id = auth.uid()
   )
 );
@@ -28,12 +25,12 @@ drop policy if exists "shopping photos upload own" on storage.objects;
 create policy "shopping photos upload own" on storage.objects for insert to authenticated
 with check (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
+  and split_part(storage.objects.name, '/', 1) = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(storage.objects.name))[3]
-      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
+    where i.id::text = split_part(storage.objects.name, '/', 3)
+      and i.trip_id::text = split_part(storage.objects.name, '/', 2)
       and t.owner_id = auth.uid()
   )
 );
@@ -42,12 +39,12 @@ drop policy if exists "shopping photos delete own" on storage.objects;
 create policy "shopping photos delete own" on storage.objects for delete to authenticated
 using (
   bucket_id = 'shopping-item-photos'
-  and (storage.foldername(storage.objects.name))[1] = auth.uid()::text
+  and split_part(storage.objects.name, '/', 1) = auth.uid()::text
   and exists (
     select 1 from public.shopping_items i
     join public.trips t on t.id = i.trip_id
-    where i.id::text = (storage.foldername(storage.objects.name))[3]
-      and i.trip_id::text = (storage.foldername(storage.objects.name))[2]
+    where i.id::text = split_part(storage.objects.name, '/', 3)
+      and i.trip_id::text = split_part(storage.objects.name, '/', 2)
       and t.owner_id = auth.uid()
   )
 );
