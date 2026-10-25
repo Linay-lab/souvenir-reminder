@@ -14,6 +14,7 @@ type Item = {
   category: Category;
   place: string;
   price: number;
+  currency?: string;
   note: string;
   bought: boolean;
 };
@@ -174,6 +175,7 @@ useEffect(() => {
   category: row.category as Category,
   place: row.place_name || "尚未設定地點",
   price: Number(row.price ?? 0),
+  currency: row.currency || undefined,
   note: row.note || "",
   bought: row.bought,
 }));
@@ -408,6 +410,7 @@ function startEdit(item: Item) {
       category: newItem.category as Category,
       place: newItem.place_name || "尚未設定地點",
       price: Number(newItem.price ?? 0),
+      currency: newItem.currency || currency,
       note: newItem.note || "",
       bought: newItem.bought,
     },
@@ -760,18 +763,18 @@ if (!storageReady || !tripReady || !currencyReady) {
 
                     {item.price > 0 && (
                       <p className="mt-3 text-sm font-semibold text-slate-700">
-                        {currency
+                        {(item.currency || currency)
   ? new Intl.NumberFormat("zh-TW", {
       style: "currency",
-      currency: currency,
+      currency: item.currency || currency,
       maximumFractionDigits: 0,
     }).format(item.price)
   : item.price.toLocaleString("zh-TW")}
 ／個 ・ 小計{" "}
-{currency
+{(item.currency || currency)
   ? new Intl.NumberFormat("zh-TW", {
       style: "currency",
-      currency: currency,
+      currency: item.currency || currency,
       maximumFractionDigits: 0,
     }).format(item.price * item.quantity)
   : (item.price * item.quantity).toLocaleString("zh-TW")}
@@ -887,6 +890,12 @@ if (!storageReady || !tripReady || !currencyReady) {
     type="button"
     onClick={async () => {
       if (!tripId) return;
+      if ((editCurrency || "TWD") !== currency && items.some((item) => item.price > 0)) {
+        const confirmed = window.confirm(
+          "你正在修改旅行的預設幣別。\n\n已建立商品的金額和原始幣別不會自動換算或改寫；既有預算也會依原幣別保留。\n\n確定只修改這趟旅行之後新增商品的預設幣別嗎？"
+        );
+        if (!confirmed) return;
+      }
 
 const { error } = await supabase
   .from("trips")
