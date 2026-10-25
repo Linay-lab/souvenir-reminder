@@ -226,11 +226,13 @@ export default function TravelDashboardPreview() {
   const activeSummary = shoppingSummary?.tripId === tripId ? shoppingSummary : null;
 
   async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
-    if (coverSaveLock.current || savingCover || pendingFile.current) {
+    if (coverSaveLock.current || savingCover || pendingFile.current || budgetBusy) {
       setTripError("請先完成或儲存目前的封面，再切換旅行。");
       return;
     }
     setTripError("");
+    setBudgetAmount("");
+    setBudgetCurrency(trip.currency || "TWD");
     tripIdRef.current = trip.id;
     try { if (userId) sessionStorage.setItem(`travel-selected-trip:${userId}`, trip.id); } catch { /* storage unavailable */ }
     setTripId(trip.id);
@@ -325,7 +327,7 @@ export default function TravelDashboardPreview() {
   }
 
   async function deleteTrip(trip: Trip) {
-    if (!userId || tripBusy || savingCover || coverSaveLock.current) return;
+    if (!userId || tripBusy || savingCover || coverSaveLock.current || budgetBusy) return;
     if (trip.id === tripId && pendingFile.current) {
       setTripError("這趟旅行有尚未儲存的封面，請先儲存或取消編輯，才能刪除。");
       return;
@@ -345,15 +347,19 @@ export default function TravelDashboardPreview() {
       }
       // Never delete a trip with shopping items or a cover: its associated
       // records and private Storage objects need a dedicated cleanup flow.
-      const [itemsCheck, coverCheck] = await Promise.all([
+      const [itemsCheck, coverCheck, budgetCheck] = await Promise.all([
         supabase.from("shopping_items").select("id", { count: "exact", head: true }).eq("trip_id", trip.id),
-        supabase.from("trip_covers").select("trip_id").eq("trip_id", trip.id).maybeSingle()
+        supabase.from("trip_covers").select("trip_id").eq("trip_id", trip.id).maybeSingle(),
+        supabase.from("trip_budgets").select("currency", { count: "exact", head: true }).eq("trip_id", trip.id)
       ]);
-      if (itemsCheck.error || coverCheck.error) {
+      if (itemsCheck.error || coverCheck.error || budgetCheck.error) {
         throw new Error("無法確認旅行的關聯資料，已停止刪除以保護原有內容。");
       }
       if ((itemsCheck.count ?? 0) > 0) {
         throw new Error("這趟旅行已有購物清單，為避免資料遺失，目前不允許刪除。");
+      }
+      if ((budgetCheck.count ?? 0) > 0) {
+        throw new Error("這趟旅行已有購物預算，請先保留旅行以免遺失預算設定。");
       }
       if (coverCheck.data) {
         throw new Error("這趟旅行已有雲端封面，為避免留下未清理的照片，目前不允許刪除。");
@@ -659,7 +665,11 @@ export default function TravelDashboardPreview() {
                 const planned = totals?.amount ?? 0;
                 const remaining = row.amount - planned;
                 return <div key={row.currency} className="rounded-2xl bg-slate-50 p-4">
-                  <p className="font-semibold">{row.currency} 預算 {row.amount.toLocaleString()}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold">{row.currency} 預算 {row.amount.toLocaleString()}</p>
+                    <button type="button" disabled={budgetBusy} onClick={() => { setBudgetCurrency(row.currency); setBudgetAmount(String(row.amount)); setBudgetError(""); }}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50">修改預算</button>
+                  </div>
                   <p className="mt-2 text-sm text-slate-600">預估購物總額：{activeSummary ? planned.toLocaleString() : "載入中…"}</p>
                   <p className="mt-1 text-sm text-slate-600">已購買估算：{activeSummary ? (totals?.purchased ?? 0).toLocaleString() : "載入中…"}</p>
                   <p className={`mt-2 font-bold ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{activeSummary ? (remaining < 0 ? `超出預算 ${Math.abs(remaining).toLocaleString()}` : `剩餘預算 ${remaining.toLocaleString()}`) : "計算中…"}</p>
