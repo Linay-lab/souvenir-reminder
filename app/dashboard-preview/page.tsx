@@ -486,7 +486,7 @@ export default function TravelDashboardPreview() {
             <p className="text-xl font-bold tracking-tight text-[#16385b]">旅購 <span className="text-sm font-normal text-slate-400">Travel Studio</span></p>
             <p className="mt-1 text-xs text-slate-500">把每一趟旅行，都安排得剛剛好。</p>
           </div>
-          <Link href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</Link>
+          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</Link>
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-7 md:px-6">
@@ -518,7 +518,7 @@ export default function TravelDashboardPreview() {
               <h2 className="max-w-xl text-3xl font-bold leading-tight md:text-5xl">{loading ? "旅程載入中…" : tripName}</h2>
               <p className="mt-4 text-sm text-white/90">📍 {destination}</p>
               {dates && <p className="mt-2 text-sm text-white/85">🗓 {dates}</p>}
-              <Link href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#123c63] hover:bg-blue-50">管理這趟旅行 →</Link>
+              <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#123c63] hover:bg-blue-50">管理這趟旅行 →</a>
             </div>
           </div>
         </section>
@@ -565,7 +565,7 @@ export default function TravelDashboardPreview() {
         {tripId && <section className="mt-8" aria-label="目前旅行購物進度">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-xl font-bold">這趟旅行的購物進度</h2>
-            <Link href={`/?tripId=${encodeURIComponent(tripId)}`} className="text-sm font-semibold text-blue-700 hover:underline">查看清單 →</Link>
+            <a href={`/?tripId=${encodeURIComponent(tripId)}`} className="text-sm font-semibold text-blue-700 hover:underline">查看清單 →</a>
           </div>
           {shoppingSummaryError && <p role="alert" className="mb-3 text-sm text-red-600">{shoppingSummaryError}</p>}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -619,16 +619,16 @@ export default function TravelDashboardPreview() {
           <div className="mb-4"><h2 className="text-xl font-bold">旅行工具箱</h2><p className="mt-1 text-sm text-slate-500">從出發準備到旅途中的每個細節</p></div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             {features.map((feature) => (
-              feature.href ? <Link key={feature.name} href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : feature.href} className="group rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              feature.href ? <a key={feature.name} href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : feature.href} className="group rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
                 <span className="text-3xl">{feature.icon}</span><p className="mt-5 font-semibold">{feature.name}</p><p className="mt-1 text-xs font-medium text-blue-600">{feature.detail} →</p>
-              </Link> : <div key={feature.name} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              </a> : <div key={feature.name} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
                 <span className="text-3xl">{feature.icon}</span><p className="mt-5 font-semibold">{feature.name}</p><p className="mt-1 text-xs text-slate-400">{feature.detail}</p>
               </div>
             ))}
           </div>
         </section>
         <section className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl bg-white p-6 shadow-sm"><p className="text-xs font-semibold tracking-wide text-blue-600">PLAN BETTER</p><h3 className="mt-2 text-xl font-bold">想買的，旅途中別再錯過。</h3><p className="mt-2 text-sm leading-6 text-slate-500">現有購物清單仍然可以正常使用，先收藏想買的東西，再慢慢完善每趟旅程。</p><Link href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="mt-5 inline-flex rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white">開啟購物清單 →</Link></div>
+          <div className="rounded-3xl bg-white p-6 shadow-sm"><p className="text-xs font-semibold tracking-wide text-blue-600">PLAN BETTER</p><h3 className="mt-2 text-xl font-bold">想買的，旅途中別再錯過。</h3><p className="mt-2 text-sm leading-6 text-slate-500">現有購物清單仍然可以正常使用，先收藏想買的東西，再慢慢完善每趟旅程。</p><a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="mt-5 inline-flex rounded-full bg-[#173f68] px-5 py-2.5 text-sm font-semibold text-white">開啟購物清單 →</a></div>
           <div className="rounded-3xl bg-gradient-to-br from-[#e9f5f7] to-[#edf1ff] p-6"><p className="text-xs font-semibold tracking-wide text-[#397b9a]">COMING SOON</p><h3 className="mt-2 text-xl font-bold">下一站，更多精彩</h3><p className="mt-2 text-sm leading-6 text-slate-600">每日行程、景點地圖、旅費管理與多人協作會逐步加入。現在先體驗新版首頁的風格與操作。</p><div className="mt-5 text-4xl">🌊 ✈️ 🗺️</div></div>
         </section>
       </div>
