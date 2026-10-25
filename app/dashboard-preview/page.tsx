@@ -25,7 +25,7 @@ const features = [
 export default function TravelDashboardPreview() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [savedCovers, setSavedCovers] = useState<CoverRecord[]>([]);
-  const [shoppingSummary, setShoppingSummary] = useState<{ tripId: string; total: number; bought: number; amounts: { currency: string; amount: number }[] } | null>(null);
+  const [shoppingSummary, setShoppingSummary] = useState<{ tripId: string; total: number; bought: number; amounts: { currency: string; amount: number; purchased: number }[] } | null>(null);
   const [shoppingSummaryError, setShoppingSummaryError] = useState("");
 
   const [tripForm, setTripForm] = useState<TripForm>(emptyTripForm);
@@ -149,17 +149,22 @@ export default function TravelDashboardPreview() {
           return;
         }
         const rows = data ?? [];
-        const amountsByCurrency = new Map<string, number>();
+        const amountsByCurrency = new Map<string, { amount: number; purchased: number }>();
         const tripCurrency = trips.find((trip) => trip.id === tripId)?.currency || "TWD";
         for (const item of rows) {
           const currency = item.currency || tripCurrency;
-          amountsByCurrency.set(currency, (amountsByCurrency.get(currency) ?? 0) + Number(item.price ?? 0) * Number(item.quantity ?? 1));
+          const existing = amountsByCurrency.get(currency) ?? { amount: 0, purchased: 0 };
+          const cost = Number(item.price ?? 0) * Number(item.quantity ?? 1);
+          amountsByCurrency.set(currency, {
+            amount: existing.amount + cost,
+            purchased: existing.purchased + (item.bought ? cost : 0)
+          });
         }
         setShoppingSummary({
           tripId,
           total: rows.length,
           bought: rows.filter((item) => item.bought).length,
-          amounts: [...amountsByCurrency].map(([currency, amount]) => ({ currency, amount }))
+          amounts: [...amountsByCurrency].map(([currency, totals]) => ({ currency, ...totals }))
         });
         setShoppingSummaryError("");
       });
@@ -571,7 +576,12 @@ export default function TravelDashboardPreview() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">購物品項</p><p className="mt-2 text-2xl font-bold">{activeSummary?.total ?? "—"} <span className="text-sm font-normal">項</span></p></div>
             <div className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">已購買進度</p><p className="mt-2 text-2xl font-bold">{activeSummary ? `${activeSummary.bought} / ${activeSummary.total}` : "—"}</p></div>
-            <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm md:col-span-1"><p className="text-sm text-slate-500">商品預估總額</p><p className="mt-2 text-2xl font-bold">{activeSummary ? (activeSummary.amounts.length ? activeSummary.amounts.map(({ currency, amount }) => `${currency} ${amount.toLocaleString()}`).join(" / ") : "尚無金額") : "—"}</p><p className="mt-1 text-xs text-slate-400">依商品單價 × 數量加總；不同幣別分開統計</p></div>
+            <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm md:col-span-1"><p className="text-sm text-slate-500">商品預估總額</p><p className="mt-2 text-2xl font-bold">{activeSummary ? (activeSummary.amounts.length ? activeSummary.amounts.map(({ currency, amount }) => `${currency} ${amount.toLocaleString()}`).join(" / ") : "尚無金額") : "—"}</p><p className="mt-1 text-xs text-slate-400">依商品單價 × 數量加總；不同幣別分開統計</p>
+              {activeSummary && activeSummary.amounts.length > 0 && <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="text-sm font-medium text-slate-600">已購買商品金額</p>
+                <p className="mt-1 text-sm font-semibold text-emerald-700">{activeSummary.amounts.map(({ currency, purchased }) => `${currency} ${purchased.toLocaleString()}`).join(" / ")}</p>
+                <p className="mt-2 text-xs text-slate-400">依已標記購買的商品估算，並非實際付款紀錄</p>
+              </div>}</div>
           </div>
         </section>}
         <section className="mt-8" aria-label="我的旅行管理">
