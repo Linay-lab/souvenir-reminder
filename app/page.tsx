@@ -60,37 +60,31 @@ useEffect(() => {
   const loadTrip = async () => {
     // Select only trips belonging to the signed-in user.
     const requestedTripId = new URLSearchParams(window.location.search).get("tripId");
-    const validTripId = requestedTripId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedTripId)
-      ? requestedTripId : null;
-    const selected = validTripId
-      ? await supabase.from("trips").select("*").eq("owner_id", user.id).eq("id", validTripId).maybeSingle()
-      : null;
-    if (selected?.error) {
-      console.error("讀取指定旅程失敗：", selected.error);
-      setListError("讀取指定旅行失敗，請返回旅行首頁重新選擇。");
-      setTripReady(true);
-      setCurrencyReady(true);
-      return;
-    }
-    // A specifically requested trip must never silently fall back to another trip.
-    if (requestedTripId && (!validTripId || !selected?.data)) {
-      setListError("無法開啟指定旅行。請返回旅行首頁重新選擇，避免修改到其他旅行的商品。");
-      setTripReady(true);
-      setCurrencyReady(true);
-      return;
-    }
-    const fallback = selected?.data ? null : await supabase
+    // Trip IDs are opaque database identifiers; do not assume they use UUID syntax.
+    // Resolve the requested ID against the signed-in user's own trip list.
+    const { data: ownedTrips, error } = await supabase
       .from("trips")
       .select("*")
       .eq("owner_id", user.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    const data = selected?.data ?? fallback?.data;
-    const error = fallback?.error;
+      .order("created_at", { ascending: true });
 
     if (error) {
       console.error("讀取 Supabase 旅程失敗：", error);
+      setListError("讀取旅行清單失敗，請重新整理後再試。");
+      setTripReady(true);
+      setCurrencyReady(true);
+      return;
+    }
+
+    const data = requestedTripId
+      ? ownedTrips?.find((trip) => String(trip.id) === requestedTripId)
+      : ownedTrips?.[0];
+
+    // Never substitute a different trip for an explicit selection.
+    if (requestedTripId && !data) {
+      setListError("找不到你選擇的旅行。請返回旅行首頁重新選擇，避免修改到其他旅行的商品。");
+      setTripReady(true);
+      setCurrencyReady(true);
       return;
     }
 
