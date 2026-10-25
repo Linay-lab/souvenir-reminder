@@ -186,7 +186,13 @@ export default function TravelDashboardPreview() {
       .then(({ data, error }) => {
         if (!active) return;
         if (error) {
-          setBudgetError("預算功能尚未啟用，請先套用 Supabase 預算資料表設定。");
+          const missingTable = error.code === "42P01" || error.code === "PGRST205" || error.message?.includes("Could not find the table");
+          const denied = error.code === "42501" || error.message?.toLowerCase().includes("permission denied");
+          setBudgetError(missingTable
+            ? "找不到預算資料表。請確認 SQL 執行的是此測試網站所連接的 Supabase 專案；如果剛建好，請重新整理網頁。"
+            : denied
+              ? "預算資料表存取遭拒，請確認 Supabase 的 RLS 權限設定。"
+              : `預算讀取失敗（${error.code || "未知錯誤"}）：${error.message || "請稍後重試"}`);
           setBudgetReadyTripId(null);
           return;
         }
