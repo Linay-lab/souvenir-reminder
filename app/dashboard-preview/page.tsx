@@ -229,6 +229,27 @@ export default function TravelDashboardPreview() {
     setBudgetBusy(false);
   }
 
+  async function deleteBudget(currencyToDelete: string) {
+    if (!tripId || !userId || budgetBusy || budgetReadyTripId !== tripId) return;
+    if (!window.confirm(`確定刪除這趟旅行的 ${currencyToDelete} 預算嗎？\n\n只會刪除這一筆預算，不會刪除商品、旅行或其他幣別預算。`)) return;
+    const targetTrip = tripId;
+    setBudgetBusy(true);
+    setBudgetError("");
+    const supabase = createClient();
+    const { error } = await supabase.from("trip_budgets")
+      .delete()
+      .eq("trip_id", targetTrip)
+      .eq("owner_id", userId)
+      .eq("currency", currencyToDelete);
+    if (error) {
+      if (tripIdRef.current === targetTrip) setBudgetError(`刪除 ${currencyToDelete} 預算失敗，請稍後再試。`);
+    } else {
+      setBudgets((previous) => previous.filter((row) => !(row.tripId === targetTrip && row.currency === currencyToDelete)));
+      if (tripIdRef.current === targetTrip && budgetCurrency === currencyToDelete) setBudgetAmount("");
+    }
+    setBudgetBusy(false);
+  }
+
   const activeSummary = shoppingSummary?.tripId === tripId ? shoppingSummary : null;
 
   async function selectTrip(trip: Trip, covers: CoverRecord[] = savedCovers) {
