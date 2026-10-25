@@ -36,6 +36,7 @@ export default function Home() {
   const [endDate, setEndDate] = useState("");
   const [tripReady, setTripReady] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
+  const [listError, setListError] = useState("");
   const [currency, setCurrency] = useState("");
   const [currencyReady, setCurrencyReady] = useState(false);
 
@@ -155,6 +156,7 @@ useEffect(() => {
     if (!active) return;
     if (error) {
       console.error("讀取 Supabase 商品失敗：", error);
+      setListError("無法載入這趟旅行的購物清單，請重新整理再試。");
       return;
     }
 
@@ -171,6 +173,7 @@ useEffect(() => {
 }));
 
 setItems(loadedItems);
+setListError("");
   };
 
   void loadItems();
@@ -273,6 +276,7 @@ useEffect(() => {
 
   if (error) {
     console.error("更新購買狀態失敗：", error);
+    setListError("購買狀態更新失敗，請稍後重試。");
     return;
   }
 
@@ -291,6 +295,7 @@ useEffect(() => {
 
   if (error) {
     console.error("刪除商品失敗：", error);
+    setListError("刪除商品失敗，請稍後重試。");
     return;
   }
 
@@ -329,6 +334,7 @@ function startEdit(item: Item) {
 
   if (error) {
     console.error("編輯商品失敗：", JSON.stringify(error, null, 2));
+    setListError("編輯商品失敗，請稍後重試。");
     return;
   }
 
@@ -372,6 +378,7 @@ function startEdit(item: Item) {
 
   if (error) {
     console.error("新增商品失敗：", error);
+    setListError("新增商品失敗，請稍後重試。");
     return;
   }
 
@@ -452,6 +459,7 @@ if (!storageReady || !tripReady || !currencyReady) {
         <a href="/dashboard-preview" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#173f68] hover:bg-slate-50">← 返回旅行首頁</a>
       </div>}
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
+        {listError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{listError}</div>}
         <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-100 via-white to-rose-100 p-6 shadow-sm md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
