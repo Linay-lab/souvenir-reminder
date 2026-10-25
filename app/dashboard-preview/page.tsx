@@ -74,7 +74,12 @@ export default function TravelDashboardPreview() {
         setSavedCovers(covers);
         if (tripsResult.error) setTripError("無法載入旅行清單，請稍後再試。");
         const coverRow = covers.find((row) => trips.some((trip) => trip.id === row.trip_id));
-        const data = trips.find((trip) => trip.id === coverRow?.trip_id) ?? trips[0];
+        // Remember the selected trip for this signed-in account only.
+        let rememberedTripId: string | null = null;
+        try { rememberedTripId = sessionStorage.getItem(`travel-selected-trip:${user.id}`); } catch { /* storage unavailable */ }
+        const data = trips.find((trip) => trip.id === rememberedTripId)
+          ?? trips.find((trip) => trip.id === coverRow?.trip_id)
+          ?? trips[0];
         if (data) {
           tripIdRef.current = data.id;
           setTripId(data.id);
@@ -169,6 +174,7 @@ export default function TravelDashboardPreview() {
     }
     setTripError("");
     tripIdRef.current = trip.id;
+    try { if (userId) sessionStorage.setItem(`travel-selected-trip:${userId}`, trip.id); } catch { /* storage unavailable */ }
     setTripId(trip.id);
     setTripName(trip.name || "我的旅行");
     setDestination(trip.destination || "尚未設定目的地");
@@ -176,6 +182,7 @@ export default function TravelDashboardPreview() {
     setCover(null);
     setCoverPosition({ x: 50, y: 50 });
     setCoverZoom(100);
+    setCoverError("");
     const record = covers.find((row) => row.trip_id === trip.id);
     if (!record || !userId) return;
     setCoverPosition({ x: Number(record.position_x), y: Number(record.position_y) });
