@@ -814,7 +814,7 @@ export default function TravelDashboardPreview() {
       </div>
       <nav className="travel-studio-bottom" aria-label="旅購導覽">
         <a href="/dashboard-preview" aria-current="page">⌂<br/>首頁</a>
-        <a href="/travel-studio-demo.html">♡<br/>收藏庫</a>
+        <a href="/collections">♡<br/>收藏庫</a>
         <a href="/dashboard-preview#my-trips">▤<br/>我的旅行</a>
         <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"}>▣<br/>購物清單</a>
       </nav>
