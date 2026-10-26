@@ -30,7 +30,7 @@ function WalletContent(){
  if(err)setError("讀取旅行失敗："+err.message);
  else{const list=(data??[]) as Trip[];setTrips(list);const id=list.find(t=>t.id===requested)?.id||list[0]?.id||"";setSelected(id);setCurrency(list.find(t=>t.id===id)?.currency||"TWD");}
  setLoading(false);})();return()=>{alive=false};},[requested]);
- useEffect(()=>{if(!selected||!userId){setExpenses([]);return;}let alive=true;(async()=>{
+ useEffect(()=>{if(!selected||!userId)return;let alive=true;(async()=>{
  const {data,error:err}=await db.from("trip_expenses").select("*").eq("trip_id",selected).eq("user_id",userId).order("expense_date",{ascending:false}).order("created_at",{ascending:false});
  if(!alive)return;
  if(err){setError("支出資料表尚未啟用，或讀取失敗："+err.message);setExpenses([]);}
