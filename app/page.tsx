@@ -1045,6 +1045,12 @@ if (error) {
   placeholder="例如：機場、百貨公司、當地商店"
   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-400"
 />
+<div className="mt-2 rounded-2xl border border-[#e4e9e6] bg-[#f5f8f5] p-3">
+  <p className="text-xs leading-5 text-[#53675d]">地點目前以文字儲存。可以先到 Google Maps 搜尋確認，再回來填寫；這不是 Google Places 自動選點功能。</p>
+  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([place.trim() || "商店", destination].filter(Boolean).join(" "))}`}
+     target="_blank" rel="noopener noreferrer"
+     className="mt-2 inline-flex rounded-xl border border-[#b5cad4] bg-white px-3 py-2 text-sm font-semibold text-[#426b7d]">📍 在 Google Maps 搜尋此地點 ↗</a>
+</div>
 <label className="mt-4 block text-sm font-medium">
   備註
 </label>
