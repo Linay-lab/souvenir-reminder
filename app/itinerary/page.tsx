@@ -34,7 +34,7 @@ function ItineraryContent(){
  if(!active)return;if(err){setError("行程資料表尚未啟用，或讀取失敗："+err.message);setStops([]);}else setStops((data??[]) as Stop[]);
  })();return()=>{active=false};},[userId,selected]);
  const trip=trips.find(t=>t.id===selected);
- const grouped=useMemo(()=>Object.entries(stops.reduce<Record<string,Stop[]>>((acc,stop)=>{(acc[stop.visit_date]??=[]).push(stop);return acc;},{})).sort(([a],[b])=>a.localeCompare(b)),[stops]);
+ const grouped=useMemo(()=>Object.entries(stops.filter(stop=>stop.trip_id===selected).reduce<Record<string,Stop[]>>((acc,stop)=>{(acc[stop.visit_date]??=[]).push(stop);return acc;},{})).sort(([a],[b])=>a.localeCompare(b)),[stops,selected]);
  function reset(){setEditId(null);setForm({...initial,visit_date:trip?.start_date||""});}
  function edit(s:Stop){setEditId(s.id);setForm({title:s.title,visit_date:s.visit_date,visit_time:s.visit_time||"",place_name:s.place_name,address:s.address,notes:s.notes});window.scrollTo({top:0,behavior:"smooth"});}
  async function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();if(!userId||!selected||!form.title.trim()||!form.visit_date)return;setBusy(true);setError("");
