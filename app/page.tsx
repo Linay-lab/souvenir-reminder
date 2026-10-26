@@ -456,8 +456,8 @@ if (!storageReady || !tripReady || !currencyReady) {
     );
   }
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-slate-800">
-      <header className="border-b bg-white/90 backdrop-blur">
+    <main className="min-h-screen bg-[#FAF9F6] pb-24 text-[#34423D] md:pb-10">
+      <header className="border-b border-[#e7e6de] bg-[#FAF9F6]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div>
             <div className="text-xl font-bold tracking-tight">
@@ -495,35 +495,31 @@ if (!storageReady || !tripReady || !currencyReady) {
         </div>
       </header>
 
+      <nav aria-label="旅購主要功能" className="mx-auto hidden max-w-6xl items-center gap-2 px-5 pt-4 md:flex">
+        <a href="/dashboard-preview" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">我的旅行</a>
+        <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} aria-current="page" className="rounded-full bg-[#34423D] px-4 py-2 text-sm font-semibold text-white">購物清單</a>
+        <a href="/collections" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">收藏庫</a>
+        <a href="/itinerary" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">行程規劃</a>
+        <a href="/wallet" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">旅行錢包</a>
+        <a href="/profile" className="ml-auto rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">個人中心</a>
+      </nav>
       {user && <div className="mx-auto max-w-6xl px-5 pt-4">
         <a href="/dashboard-preview" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#173f68] hover:bg-slate-50">← 返回旅行首頁</a>
       </div>}
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
         {listError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{listError}</div>}
-        <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-100 via-white to-rose-100 p-6 shadow-sm md:p-8">
+        <section className="overflow-hidden rounded-[28px] border border-[#e3e6dd] bg-gradient-to-br from-[#e8f0f2] via-[#FAF9F6] to-[#f2e8e1] p-6 shadow-sm md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <div className="mb-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium shadow-sm">
-                🇯🇵 旅行清單
+                🛍️ 這趟旅行的購物清單
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
                 {tripName}
               </h1>
-              <button
-               type="button"
-              onClick={() => {
-                setEditTripName(tripName);
-                setEditDestination(destination);
-                setEditStartDate(startDate);
-                setEditEndDate(endDate);
-                setEditCurrency(currency);
-                setShowTripEdit(true);
-              }}
-               className="mt-2 text-sm font-medium text-sky-600 hover:text-sky-700"
-              >
-                {destination || startDate || endDate ? "✏️ 編輯旅行" : "＋ 建立旅行"}
-              </button>
+              <p className="mt-2 text-sm text-[#66746b]">這趟旅行想買的伴手禮，都整理在這裡。</p>
+              <a href="/dashboard-preview" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#426b7d] hover:underline">↗ 切換或管理旅行</a>
 <p className="mt-2 text-sm font-medium text-slate-600">
   📍 {destination || "尚未設定目的地"}
 </p>
@@ -554,7 +550,7 @@ if (!storageReady || !tripReady || !currencyReady) {
               <div className="mt-5 flex items-center gap-3">
                 <div className="h-2 w-48 overflow-hidden rounded-full bg-white">
                   <div
-                    className="h-full rounded-full bg-emerald-400 transition-all"
+                    className="h-full rounded-full bg-[#a5ad96] transition-all"
                     style={{
                       width: `${
                         items.length
@@ -570,9 +566,7 @@ if (!storageReady || !tripReady || !currencyReady) {
               </div>
             </div>
 
-            <button className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5">
-              🔗 分享清單
-            </button>
+            <a href="/collections" className="rounded-2xl border border-[#d9dfd5] bg-white px-5 py-3 text-sm font-semibold text-[#34423D] shadow-sm transition hover:-translate-y-0.5">♡ 從收藏庫找靈感</a>
           </div>
         </section>
 
@@ -581,19 +575,19 @@ if (!storageReady || !tripReady || !currencyReady) {
             icon="🛍️"
             label="全部"
             value={items.length}
-            bg="bg-sky-50"
+            bg="bg-[#e8f0f2]"
           />
           <StatCard
             icon="✅"
             label="已購買"
             value={boughtCount}
-            bg="bg-emerald-50"
+            bg="bg-[#edf0e8]"
           />
           <StatCard
             icon="⏳"
             label="未購買"
             value={items.length - boughtCount}
-            bg="bg-rose-50"
+            bg="bg-[#f4ece7]"
           />
         </section>
 
@@ -634,7 +628,7 @@ if (!storageReady || !tripReady || !currencyReady) {
 
             <button
               onClick={() => { resetItemForm(); setShowAdd(true); }}
-              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              className="rounded-2xl bg-[#34423D] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#52645a]"
             >
               {items.length === 0 ? "＋ 新增第一個商品" : "＋ 新增商品"}
             </button>
@@ -1070,6 +1064,13 @@ if (error) {
           </div>
         </div>
       )}
+      <nav aria-label="旅購手機導覽" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-[#e4e6de] bg-[#FAF9F6]/95 py-2 text-center text-[11px] font-medium text-[#52645a] shadow-lg backdrop-blur md:hidden">
+        <a href="/dashboard-preview" className="py-1">⌂<span className="block">旅行</span></a>
+        <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} aria-current="page" className="rounded-lg bg-[#e7eee8] py-1 font-bold text-[#34423D]">▣<span className="block">清單</span></a>
+        <a href="/collections" className="py-1">♡<span className="block">收藏</span></a>
+        <a href="/itinerary" className="py-1">▦<span className="block">行程</span></a>
+        <a href="/profile" className="py-1">◉<span className="block">我的</span></a>
+      </nav>
     </main>
   );
 }
