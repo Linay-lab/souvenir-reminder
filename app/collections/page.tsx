@@ -22,6 +22,7 @@ export default function CollectionsPage() {
   const [query,setQuery]=useState("");
   const [kind,setKind]=useState("全部");
   const [busy,setBusy]=useState(false);
+  const [photo,setPhoto]=useState<File|null>(null);
   const [loading,setLoading]=useState(true);
   const [message,setMessage]=useState("");
   async function reload(uid:string) {
@@ -45,11 +46,22 @@ export default function CollectionsPage() {
   },[]);
   const visible=useMemo(()=>rows.filter(r=>(kind==="全部"||r.kind===kind)&&[r.title,r.country,r.city,r.place_name,r.notes].join(" ").toLowerCase().includes(query.trim().toLowerCase())),[rows,kind,query]);
   function startEdit(r:Collection){setEditing(r.id);setForm({title:r.title,kind:r.kind,country:r.country,city:r.city,place_name:r.place_name,source_url:r.source_url,image_url:r.image_url,notes:r.notes});setShowForm(true);window.scrollTo({top:0,behavior:"smooth"});}
-  function reset(){setForm(blank);setEditing(null);setShowForm(false);}
+  function reset(){setForm(blank);setPhoto(null);setEditing(null);setShowForm(false);}
   async function save(e:React.FormEvent<HTMLFormElement>){
     e.preventDefault();if(!userId||!form.title.trim())return;
     setBusy(true);setMessage("");
-    const payload={...form,title:form.title.trim(),user_id:userId,updated_at:new Date().toISOString()};
+    let imageUrl=form.image_url;
+    if(photo){
+      if(!photo.type.startsWith("image/")){setMessage("請選擇圖片檔案。");setBusy(false);return;}
+      if(photo.size>8*1024*1024){setMessage("圖片請勿超過 8 MB。");setBusy(false);return;}
+      const extension=(photo.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+      const key=`${userId}/${crypto.randomUUID()}.${extension||"jpg"}`;
+      const uploaded=await db.storage.from("collection-photos").upload(key,photo,{contentType:photo.type,upsert:false});
+      if(uploaded.error){setMessage("照片上傳失敗："+uploaded.error.message);setBusy(false);return;}
+      const {data}=db.storage.from("collection-photos").getPublicUrl(key);
+      imageUrl=data.publicUrl;
+    }
+    const payload={...form,image_url:imageUrl,title:form.title.trim(),user_id:userId,updated_at:new Date().toISOString()};
     const result=editing
       ? await db.from("saved_collections").update(payload).eq("id",editing).eq("user_id",userId)
       : await db.from("saved_collections").insert(payload);
@@ -89,6 +101,10 @@ export default function CollectionsPage() {
         <label className="text-sm">名稱 *<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="例如：博多車站伴手禮" className="mt-1 w-full rounded-xl border p-3"/></label>
         <label className="text-sm">分類<select value={form.kind} onChange={e=>setForm({...form,kind:e.target.value as Kind})} className="mt-1 w-full rounded-xl border p-3">{kinds.map(k=><option key={k}>{k}</option>)}</select></label>
         {(["country","city","place_name","source_url","image_url"] as const).map((key)=><label key={key} className="text-sm">{{country:"國家",city:"城市",place_name:"地點名稱",source_url:"來源網址",image_url:"圖片網址"}[key]}<input type={key.endsWith("url")?"url":"text"} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} className="mt-1 w-full rounded-xl border p-3"/></label>)}
+        <label className="sm:col-span-2 text-sm">從裝置上傳收藏照片（JPG、PNG、WebP，最多 8 MB）
+          <input type="file" accept="image/*" onChange={e=>setPhoto(e.target.files?.[0]||null)} className="mt-2 block w-full rounded-xl border border-[#e4e7e2] bg-[#f8faf7] p-3 text-sm"/>
+          <span className="mt-1 block text-xs text-[#7a8580]">照片會儲存在私人帳號路徑，並以公開圖片網址顯示；請勿上傳含敏感個資的照片。</span>
+        </label>
         <label className="sm:col-span-2 text-sm">備註<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} className="mt-1 w-full rounded-xl border p-3"/></label>
         <div className="flex gap-3 sm:col-span-2"><button disabled={busy} type="submit" className="rounded-xl bg-[#91B3C3] px-5 py-3 font-semibold text-white disabled:opacity-50">{busy?"儲存中…":"儲存收藏"}</button><button type="button" onClick={reset} className="rounded-xl border px-5 py-3">取消</button></div>
       </form>}
