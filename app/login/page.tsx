@@ -30,7 +30,7 @@ export default function LoginPage() {
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: "https://souvenir-reminder.vercel.app/",
+            emailRedirectTo: `${window.location.origin}/dashboard-preview`,
           },
         });
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
     setMessage("重設密碼信已寄出，請到信箱查看 📩");
   }
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-4 py-10">
+    <main className="min-h-screen bg-[#FAF9F6] px-4 py-10 text-[#34423D]">
       <div className="mx-auto max-w-md">
         <div className="mb-8 text-center">
           <div className="text-4xl">🧳</div>
@@ -170,7 +170,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-[#34423D] py-3 font-medium text-white disabled:opacity-50"
             >
               {loading
                 ? "處理中..."
