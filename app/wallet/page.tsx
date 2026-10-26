@@ -36,7 +36,8 @@ function WalletContent(){
  if(err){setError("支出資料表尚未啟用，或讀取失敗："+err.message);setExpenses([]);}
  else{setExpenses((data??[]) as Expense[]);setError("");}
  })();return()=>{alive=false};},[selected,userId]);
- const totals=useMemo(()=>expenses.reduce<Record<string,number>>((all,e)=>{all[e.currency]=(all[e.currency]||0)+Number(e.amount);return all;},{}),[expenses]);
+ const activeExpenses=useMemo(()=>expenses.filter(e=>e.trip_id===selected),[expenses,selected]);
+ const totals=useMemo(()=>activeExpenses.reduce<Record<string,number>>((all,e)=>{all[e.currency]=(all[e.currency]||0)+Number(e.amount);return all;},{}),[activeExpenses]);
  function reset(){setEditing(null);setTitle("");setDate(new Date().toLocaleDateString("en-CA"));setCategory("餐飲");setAmount("");setCurrency(trips.find(t=>t.id===selected)?.currency||"TWD");setNotes("");}
  function edit(e:Expense){setEditing(e.id);setTitle(e.title);setDate(e.expense_date);setCategory(e.category);setAmount(String(e.amount));setCurrency(e.currency);setNotes(e.notes);window.scrollTo({top:0,behavior:"smooth"});}
  async function save(ev:React.FormEvent<HTMLFormElement>){ev.preventDefault();if(!userId||!selected)return;const n=Number(amount);if(!Number.isFinite(n)||n<0){setError("金額請輸入零或正數。");return;}
@@ -61,7 +62,7 @@ function WalletContent(){
  <label className="text-sm">幣別<select value={currency} onChange={e=>setCurrency(e.target.value)} className="mt-1 w-full rounded-xl border p-3">{["TWD","JPY","USD","KRW","EUR","CNY","HKD","THB","SGD"].map(c=><option key={c}>{c}</option>)}</select></label>
  <label className="text-sm sm:col-span-2">備註<textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)} className="mt-1 w-full rounded-xl border p-3"/></label>
  <div className="flex gap-3 sm:col-span-2"><button disabled={busy} className="rounded-xl bg-[#91B3C3] px-5 py-3 font-semibold text-white disabled:opacity-50">{busy?"儲存中…":"儲存支出"}</button>{editing&&<button type="button" onClick={reset} className="rounded-xl border px-4 py-3">取消編輯</button>}</div></form>
- <section className="mt-8 space-y-3"><h2 className="text-xl font-bold">支出明細</h2>{expenses.length===0?<p className="rounded-2xl bg-white p-6 text-center text-sm">還沒有支出紀錄</p>:expenses.map(e=><article key={e.id} className="flex items-start justify-between gap-3 rounded-2xl border border-[#e7e9e2] bg-white p-4"><div><p className="text-xs text-[#74877d]">{e.expense_date} · {e.category}</p><h3 className="mt-1 font-semibold">{e.title}</h3><p className="mt-1 text-lg font-bold">{e.currency} {Number(e.amount).toLocaleString()}</p>{e.notes&&<p className="mt-2 whitespace-pre-wrap text-sm text-[#79847d]">{e.notes}</p>}</div><div className="flex shrink-0 gap-2 text-sm"><button onClick={()=>edit(e)} className="text-[#527586]">編輯</button><button onClick={()=>remove(e)} className="text-[#b07c70]">刪除</button></div></article>)}</section>
+ <section className="mt-8 space-y-3"><h2 className="text-xl font-bold">支出明細</h2>{activeExpenses.length===0?<p className="rounded-2xl bg-white p-6 text-center text-sm">還沒有支出紀錄</p>:activeExpenses.map(e=><article key={e.id} className="flex items-start justify-between gap-3 rounded-2xl border border-[#e7e9e2] bg-white p-4"><div><p className="text-xs text-[#74877d]">{e.expense_date} · {e.category}</p><h3 className="mt-1 font-semibold">{e.title}</h3><p className="mt-1 text-lg font-bold">{e.currency} {Number(e.amount).toLocaleString()}</p>{e.notes&&<p className="mt-2 whitespace-pre-wrap text-sm text-[#79847d]">{e.notes}</p>}</div><div className="flex shrink-0 gap-2 text-sm"><button onClick={()=>edit(e)} className="text-[#527586]">編輯</button><button onClick={()=>remove(e)} className="text-[#b07c70]">刪除</button></div></article>)}</section>
  </>}
  </div></main>;
 }
