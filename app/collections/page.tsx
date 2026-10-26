@@ -72,9 +72,24 @@ export default function CollectionsPage() {
   async function addToTrip(r:Collection) {
     const chosen=tripChoice[r.id]||trips[0]?.id;
     if(!userId||!chosen)return;
-    if(r.kind!=="商品"){setMessage("目前只有商品類收藏可以加入購物清單；景點與美食的行程整合仍在開發。");return;}
+    if(r.kind==="其他"){setMessage("「其他」分類請先選擇商品、景點、美食或商店，再加入旅行。");return;}
     setCopying(r.id);setMessage("");
     const trip=trips.find(t=>t.id===chosen);
+    if(r.kind!=="商品"){
+      const dateInput=window.prompt("安排在哪一天？請輸入 YYYY-MM-DD（例如 2027-05-16）");
+      if(dateInput===null){setCopying(null);return;}
+      const date=dateInput.trim();
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(Date.parse(date))){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
+      const {error}=await db.from("itinerary_stops").insert({
+        user_id:userId,trip_id:chosen,visit_date:date,title:r.title,
+        place_name:r.place_name||"",address:"",notes:[r.notes,r.source_url].filter(Boolean).join("\n"),
+        source_collection_id:r.id,sort_order:0
+      });
+      setCopying(null);
+      if(error)setMessage("加入行程失敗："+error.message);
+      else setMessage(`已將「${r.title}」安排在 ${date}，原收藏仍保留。`);
+      return;
+    }
     const {error}=await db.from("shopping_items").insert({
       trip_id:chosen,created_by:userId,name:r.title,quantity:1,recipient:"自己",
       category:"自用",price:0,currency:trip?.currency||"TWD",
@@ -115,9 +130,9 @@ export default function CollectionsPage() {
       {loading?<p className="py-12 text-center">讀取收藏中…</p>:userId&&visible.length===0?<div className="rounded-3xl border border-dashed border-[#d8ddd5] bg-white px-5 py-16 text-center"><p className="text-4xl">📮</p><p className="mt-3 font-semibold">{rows.length?"找不到符合的收藏":"收藏庫還是空的"}</p><p className="mt-2 text-sm text-[#7c8880]">看到喜歡的東西，就從這裡開始記錄。</p></div>:<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.map(r=><article key={r.id} className="overflow-hidden rounded-3xl border border-[#e7e5df] bg-white shadow-sm">
         {r.image_url?<div className="h-40 bg-[#f2f0ea]" style={{backgroundImage:`url("${r.image_url.replaceAll('"','%22')}")`,backgroundSize:"cover",backgroundPosition:"center"}} role="img" aria-label={r.title}/>:<div className="flex h-32 items-center justify-center bg-[#edf1ec] text-5xl">{r.kind==="美食"?"🍜":r.kind==="景點"?"🏞️":r.kind==="商店"?"🏬":"🎁"}</div>}
         <div className="p-4"><p className="text-xs font-semibold text-[#839E92]">{r.kind} · {[r.country,r.city].filter(Boolean).join(" / ")||"未分類地區"}</p><h2 className="mt-2 text-lg font-bold">{r.title}</h2>{r.place_name&&<p className="mt-1 text-sm text-[#687b75]">📍 {r.place_name}</p>}{r.notes&&<p className="mt-2 line-clamp-2 text-sm text-[#7a8580]">{r.notes}</p>}
-          {r.kind==="商品"&&trips.length>0&&<div className="mt-4 flex gap-2">
+          {r.kind!=="其他"&&trips.length>0&&<div className="mt-4 flex gap-2">
             <select aria-label={`將${r.title}加入哪趟旅行`} value={tripChoice[r.id]||trips[0].id} onChange={e=>setTripChoice({...tripChoice,[r.id]:e.target.value})} className="min-w-0 flex-1 rounded-xl border border-[#e2e7df] bg-white px-2 py-2 text-xs">{trips.map(t=><option key={t.id} value={t.id}>{t.name||"未命名旅行"}</option>)}</select>
-            <button disabled={copying===r.id} onClick={()=>addToTrip(r)} className="shrink-0 rounded-xl bg-[#a5ad96] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{copying===r.id?"加入中…":"加入旅行 ＋"}</button>
+            <button disabled={copying===r.id} onClick={()=>addToTrip(r)} className="shrink-0 rounded-xl bg-[#a5ad96] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{copying===r.id?"加入中…":r.kind==="商品"?"加入購物 ＋":"排入行程 ＋"}</button>
           </div>}
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm"><button onClick={()=>startEdit(r)} className="font-semibold text-[#426b7d]">編輯</button><button onClick={()=>remove(r)} className="text-[#aa776b]">刪除</button>{r.source_url&&<a href={r.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#426b7d]">來源 ↗</a>}{r.place_name&&<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([r.place_name,r.city,r.country].filter(Boolean).join(" "))}`} target="_blank" rel="noopener noreferrer" className="text-[#426b7d]">地圖 ↗</a>}</div>
         </div>
