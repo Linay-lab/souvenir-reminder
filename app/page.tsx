@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import ItemPhotos from "@/app/components/ItemPhotos";
+import StudioNavigation from "@/app/components/StudioNavigation";
 import type { User } from "@supabase/supabase-js";
 
 type Category = "送禮" | "託買" | "自用";
@@ -457,6 +458,7 @@ if (!storageReady || !tripReady || !currencyReady) {
   }
   return (
     <main className="min-h-screen bg-[#FAF9F6] pb-24 text-[#34423D] md:pb-10">
+      <StudioNavigation />
       <header className="border-b border-[#e7e6de] bg-[#FAF9F6]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div>
@@ -495,14 +497,7 @@ if (!storageReady || !tripReady || !currencyReady) {
         </div>
       </header>
 
-      <nav aria-label="旅購主要功能" className="mx-auto hidden max-w-6xl items-center gap-2 px-5 pt-4 md:flex">
-        <a href="/dashboard-preview" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">我的旅行</a>
-        <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} aria-current="page" className="rounded-full bg-[#34423D] px-4 py-2 text-sm font-semibold text-white">購物清單</a>
-        <a href="/collections" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">收藏庫</a>
-        <a href="/itinerary" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">行程規劃</a>
-        <a href="/wallet" className="rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">旅行錢包</a>
-        <a href="/profile" className="ml-auto rounded-full px-4 py-2 text-sm text-[#52645a] hover:bg-[#e7eee8]">個人中心</a>
-      </nav>
+      
       {user && <div className="mx-auto max-w-6xl px-5 pt-4">
         <a href="/dashboard-preview" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#173f68] hover:bg-slate-50">← 返回旅行首頁</a>
       </div>}
@@ -1064,13 +1059,7 @@ if (error) {
           </div>
         </div>
       )}
-      <nav aria-label="旅購手機導覽" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-[#e4e6de] bg-[#FAF9F6]/95 py-2 text-center text-[11px] font-medium text-[#52645a] shadow-lg backdrop-blur md:hidden">
-        <a href="/dashboard-preview" className="py-1">⌂<span className="block">旅行</span></a>
-        <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} aria-current="page" className="rounded-lg bg-[#e7eee8] py-1 font-bold text-[#34423D]">▣<span className="block">清單</span></a>
-        <a href="/collections" className="py-1">♡<span className="block">收藏</span></a>
-        <a href="/itinerary" className="py-1">▦<span className="block">行程</span></a>
-        <a href="/profile" className="py-1">◉<span className="block">我的</span></a>
-      </nav>
+      
     </main>
   );
 }
