@@ -2,6 +2,7 @@
 import {Suspense,useEffect,useMemo,useState} from "react";
 import {useSearchParams} from "next/navigation";
 import {createClient} from "@/utils/supabase/client";
+import StudioNavigation from "@/app/components/StudioNavigation";
 type Trip={id:string;name:string|null;currency:string|null};
 type Expense={id:string;trip_id:string;user_id:string;expense_date:string;title:string;category:string;amount:number;currency:string;notes:string};
 const categories=["交通","住宿","餐飲","購物","門票","其他"];
@@ -46,7 +47,8 @@ function WalletContent(){
  if(res.error)setError("儲存失敗："+res.error.message);else{reset();const fresh=await db.from("trip_expenses").select("*").eq("trip_id",selected).eq("user_id",userId).order("expense_date",{ascending:false}).order("created_at",{ascending:false});if(fresh.error)setError(fresh.error.message);else setExpenses((fresh.data??[]) as Expense[]);}
  setBusy(false);}
  async function remove(e:Expense){if(!window.confirm("確定刪除這筆支出？"))return;const {error:err}=await db.from("trip_expenses").delete().eq("id",e.id).eq("user_id",userId).eq("trip_id",selected);if(err)setError(err.message);else setExpenses(x=>x.filter(y=>y.id!==e.id));}
- return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-20 pt-8 text-[#34423D] sm:px-8"><div className="mx-auto max-w-4xl">
+ return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-20 pt-8 text-[#34423D] sm:px-8">
+ <StudioNavigation /><div className="mx-auto max-w-4xl">
  <a href="/dashboard-preview" className="text-sm font-semibold text-[#537887]">← 返回旅行首頁</a>
  <h1 className="mt-4 text-3xl font-bold">💳 旅行錢包</h1><p className="mt-2 text-sm text-[#7b867f]">記錄每一筆花費，分幣別查看總額，不會自動換匯或重複計入購物清單。</p>
  {error&&<p role="alert" className="my-4 rounded-2xl bg-[#fff1e9] p-4 text-sm">{error}</p>}
