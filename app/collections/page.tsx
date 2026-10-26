@@ -79,7 +79,7 @@ export default function CollectionsPage() {
       const dateInput=window.prompt("安排在哪一天？請輸入 YYYY-MM-DD（例如 2027-05-16）");
       if(dateInput===null){setCopying(null);return;}
       const date=dateInput.trim();
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(Date.parse(date))){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
       const {error}=await db.from("itinerary_stops").insert({
         user_id:userId,trip_id:chosen,visit_date:date,title:r.title,
         place_name:r.place_name||"",address:"",notes:[r.notes,r.source_url].filter(Boolean).join("\n"),
