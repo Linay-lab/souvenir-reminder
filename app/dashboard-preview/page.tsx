@@ -812,6 +812,7 @@ export default function TravelDashboardPreview() {
           <div className="rounded-3xl bg-gradient-to-br from-[#e9f5f7] to-[#edf1ff] p-6"><p className="text-xs font-semibold tracking-wide text-[#397b9a]">COMING SOON</p><h3 className="mt-2 text-xl font-bold">下一站，更多精彩</h3><p className="mt-2 text-sm leading-6 text-slate-600">每日行程、景點地圖、旅費管理與多人協作會逐步加入。現在先體驗新版首頁的風格與操作。</p><div className="mt-5 text-4xl">🌊 ✈️ 🗺️</div></div>
         </section>
       </div>
+      <a href="/feedback" className="fixed bottom-20 right-4 z-30 rounded-full border border-[#dfe6dd] bg-[#FAF9F6] px-4 py-3 text-sm font-semibold text-[#426b7d] shadow-lg">💌 Beta 回饋</a>
       <nav className="travel-studio-bottom" aria-label="旅購導覽">
         <a href="/dashboard-preview" aria-current="page">⌂<br/>首頁</a>
         <a href="/collections">♡<br/>收藏庫</a>
