@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-type TripOption = { id:string; name:string|null; currency:string|null };\ntype Kind = "商品" | "景點" | "美食" | "商店" | "其他";
+type TripOption = { id:string; name:string|null; currency:string|null };
+type Kind = "商品" | "景點" | "美食" | "商店" | "其他";
 type Collection = { id:string; user_id:string; title:string; kind:Kind; country:string; city:string; place_name:string; source_url:string; image_url:string; notes:string; created_at:string };
 const kinds: Kind[] = ["商品","景點","美食","商店","其他"];
 const blank = { title:"",kind:"商品" as Kind,country:"",city:"",place_name:"",source_url:"",image_url:"",notes:"" };
@@ -11,7 +12,10 @@ const db = createClient();
 
 export default function CollectionsPage() {
   const [userId,setUserId]=useState("");
-  const [rows,setRows]=useState<Collection[]>([]);\n  const [trips,setTrips]=useState<TripOption[]>([]);\n  const [tripChoice,setTripChoice]=useState<Record<string,string>>({});\n  const [copying,setCopying]=useState<string|null>(null);
+  const [rows,setRows]=useState<Collection[]>([]);
+  const [trips,setTrips]=useState<TripOption[]>([]);
+  const [tripChoice,setTripChoice]=useState<Record<string,string>>({});
+  const [copying,setCopying]=useState<string|null>(null);
   const [form,setForm]=useState(blank);
   const [editing,setEditing]=useState<string|null>(null);
   const [showForm,setShowForm]=useState(false);
@@ -32,7 +36,10 @@ export default function CollectionsPage() {
       const {data:{user}}=await db.auth.getUser();
       if(!active)return;
       if(!user){setLoading(false);setMessage("請先登入，才能使用私人收藏庫。");return;}
-      setUserId(user.id);\n      const {data:tripRows,error:tripError}=await db.from("trips").select("id,name,currency").eq("owner_id",user.id);\n      if(!tripError)setTrips((tripRows??[]) as TripOption[]);\n      await reload(user.id);
+      setUserId(user.id);
+      const {data:tripRows,error:tripError}=await db.from("trips").select("id,name,currency").eq("owner_id",user.id);
+      if(!tripError)setTrips((tripRows??[]) as TripOption[]);
+      await reload(user.id);
     })();
     return()=>{active=false};
   },[]);
@@ -59,7 +66,8 @@ export default function CollectionsPage() {
     const {error}=await db.from("shopping_items").insert({
       trip_id:chosen,created_by:userId,name:r.title,quantity:1,recipient:"自己",
       category:"自用",price:0,currency:trip?.currency||"TWD",
-      place_name:r.place_name||null,note:[r.notes,r.source_url].filter(Boolean).join("\\n")||null,bought:false
+      place_name:r.place_name||null,note:[r.notes,r.source_url].filter(Boolean).join("\
+")||null,bought:false
     });
     setCopying(null);
     if(error)setMessage("加入旅行失敗："+error.message);
