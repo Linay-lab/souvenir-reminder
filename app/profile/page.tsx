@@ -2,6 +2,7 @@
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {createClient} from "@/utils/supabase/client";
+import StudioNavigation from "@/app/components/StudioNavigation";
 const db=createClient();
 export default function ProfilePage(){
  const [email,setEmail]=useState("");
@@ -10,7 +11,8 @@ export default function ProfilePage(){
  const [message,setMessage]=useState("");
  useEffect(()=>{let active=true;db.auth.getUser().then(({data:{user},error})=>{if(!active)return;if(error)setMessage(error.message);setEmail(user?.email||"");setLoading(false)});return()=>{active=false};},[]);
  async function logout(){setBusy(true);setMessage("");const {error}=await db.auth.signOut();if(error){setMessage("登出失敗："+error.message);setBusy(false);return;}window.location.assign("/");}
- return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-28 pt-8 text-[#34423D] sm:px-8"><div className="mx-auto max-w-3xl">
+ return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-28 pt-8 text-[#34423D] sm:px-8">
+ <StudioNavigation /><div className="mx-auto max-w-3xl">
  <Link href="/dashboard-preview" className="text-sm font-semibold text-[#527586]">← 回首頁</Link>
  <p className="mt-8 text-xs font-semibold tracking-[0.2em] text-[#7e9b9c]">TRAVEL STUDIO · 旅購</p><h1 className="mt-2 text-3xl font-bold">個人中心</h1>
  <section className="mt-7 rounded-3xl border border-[#e4e7df] bg-white p-6 shadow-sm"><div className="flex items-center gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e7eee8] text-2xl">👤</span><div><p className="font-semibold">我的旅購帳號</p><p className="mt-1 break-all text-sm text-[#77877e]">{loading?"讀取中…":email||"尚未登入"}</p></div></div>
