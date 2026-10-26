@@ -16,7 +16,11 @@ create table if not exists public.saved_collections (
 );
 create index if not exists saved_collections_user_created_idx on public.saved_collections(user_id,created_at desc);
 alter table public.saved_collections enable row level security;
+drop policy if exists "collections_select_own" on public.saved;
 create policy "collections_select_own" on public.saved_collections for select to authenticated using ((select auth.uid())=user_id);
+drop policy if exists "collections_insert_own" on public.saved;
 create policy "collections_insert_own" on public.saved_collections for insert to authenticated with check ((select auth.uid())=user_id);
+drop policy if exists "collections_update_own" on public.saved;
 create policy "collections_update_own" on public.saved_collections for update to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+drop policy if exists "collections_delete_own" on public.saved;
 create policy "collections_delete_own" on public.saved_collections for delete to authenticated using ((select auth.uid())=user_id);
