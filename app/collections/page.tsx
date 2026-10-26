@@ -142,6 +142,6 @@ export default function CollectionsPage() {
         </div>
       </article>)}</div>}
     </div>
-    <nav aria-label="旅購導覽" className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-[#e8e7e1] bg-[#FAF9F6]/95 px-3 py-3 text-center text-xs shadow-lg backdrop-blur"><a href="/dashboard-preview">⌂<br/>首頁</a><a href="/collections" aria-current="page" className="font-bold text-[#426b7d]">♡<br/>收藏庫</a><a href="/dashboard-preview#my-trips">▤<br/>我的旅行</a><Link href="/profile">◉<br/>個人中心</Link></nav>
+    
   </main>;
 }
