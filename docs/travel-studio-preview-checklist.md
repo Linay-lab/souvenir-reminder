@@ -14,8 +14,9 @@ GitHub Actions Preview verification：TypeScript `npx tsc --noEmit`、ESLint `np
 2. `supabase/migrations/20261026_collection_photos_storage.sql` — 公開圖片 bucket、本人路徑寫入限制
 3. `supabase/migrations/20261026_itinerary_stops.sql` — 行程與 RLS
 4. `supabase/migrations/20261026_trip_expenses.sql` — 支出紀錄與 RLS
+5. `supabase/migrations/20261026_beta_feedback.sql` — Beta 回饋（僅登入者提交，不公開讀取）
 
-> 目前未從本對話直接執行上述 SQL。重複執行可能因 policy 已存在而失敗；不要假設這些 migration 可無限重跑。
+> 目前未從本對話直接執行上述 SQL。權限規則已使用 `drop policy if exists` 重新建立，但仍需在測試環境驗證；請勿將此視為無風險的正式環境更新。
 
 ## 3. 驗收清單
 - [ ] 登入帳號 A，收藏新增／搜尋／修改／刪除正常，重新整理仍保留
@@ -26,6 +27,8 @@ GitHub Actions Preview verification：TypeScript `npx tsc --noEmit`、ESLint `np
 - [ ] 旅行錢包新增、修改、刪除；不同幣別分開加總
 - [ ] 登入帳號 B，無法讀取／修改帳號 A 的收藏、行程、支出及照片上傳路徑
 - [ ] 既有 trips、shopping_items、trip_covers、trip_budgets 功能及資料不受影響
+- [ ] Beta 指南無需登入可開啟；個人功能與站內回饋須登入
+- [ ] Beta 回饋可成功送出；一般帳號無法讀取他人回饋
 - [ ] 桌機及手機版導覽與表單正常
 - [ ] Google Maps 外部搜尋連結正常（**尚未**實作 Google Places API 選點／定位提醒）
 
