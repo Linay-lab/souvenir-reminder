@@ -66,8 +66,7 @@ export default function CollectionsPage() {
     const {error}=await db.from("shopping_items").insert({
       trip_id:chosen,created_by:userId,name:r.title,quantity:1,recipient:"自己",
       category:"自用",price:0,currency:trip?.currency||"TWD",
-      place_name:r.place_name||null,note:[r.notes,r.source_url].filter(Boolean).join("\
-")||null,bought:false
+      place_name:r.place_name||null,note:[r.notes,r.source_url].filter(Boolean).join("\n")||null,bought:false
     });
     setCopying(null);
     if(error)setMessage("加入旅行失敗："+error.message);
