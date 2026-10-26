@@ -16,6 +16,7 @@ export default function CollectionsPage() {
   const [rows,setRows]=useState<Collection[]>([]);
   const [trips,setTrips]=useState<TripOption[]>([]);
   const [tripChoice,setTripChoice]=useState<Record<string,string>>({});
+  const [dateChoice,setDateChoice]=useState<Record<string,string>>({});
   const [copying,setCopying]=useState<string|null>(null);
   const [form,setForm]=useState(blank);
   const [editing,setEditing]=useState<string|null>(null);
@@ -77,9 +78,8 @@ export default function CollectionsPage() {
     setCopying(r.id);setMessage("");
     const trip=trips.find(t=>t.id===chosen);
     if(r.kind!=="商品"){
-      const dateInput=window.prompt("安排在哪一天？請輸入 YYYY-MM-DD（例如 2027-05-16）");
-      if(dateInput===null){setCopying(null);return;}
-      const date=dateInput.trim();
+      const date=(dateChoice[r.id]||"").trim();
+      if(!date){setCopying(null);setMessage("請先選擇要安排的日期。");return;}
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
       const {error}=await db.from("itinerary_stops").insert({
         user_id:userId,trip_id:chosen,visit_date:date,title:r.title,
@@ -135,6 +135,7 @@ export default function CollectionsPage() {
             <select aria-label={`將${r.title}加入哪趟旅行`} value={tripChoice[r.id]||trips[0].id} onChange={e=>setTripChoice({...tripChoice,[r.id]:e.target.value})} className="min-w-0 flex-1 rounded-xl border border-[#e2e7df] bg-white px-2 py-2 text-xs">{trips.map(t=><option key={t.id} value={t.id}>{t.name||"未命名旅行"}</option>)}</select>
             <button disabled={copying===r.id} onClick={()=>addToTrip(r)} className="shrink-0 rounded-xl bg-[#a5ad96] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{copying===r.id?"加入中…":r.kind==="商品"?"加入購物 ＋":"排入行程 ＋"}</button>
           </div>}
+          {r.kind!=="商品"&&r.kind!=="其他"&&trips.length>0&&<label className="mt-2 block text-xs text-[#687b75]">安排日期<input type="date" aria-label={`${r.title}的行程日期`} value={dateChoice[r.id]||""} onChange={e=>setDateChoice(prev=>({...prev,[r.id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-[#e2e7df] bg-white px-3 py-2 text-sm"/></label>}
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm"><button onClick={()=>startEdit(r)} className="font-semibold text-[#426b7d]">編輯</button><button onClick={()=>remove(r)} className="text-[#aa776b]">刪除</button>{r.source_url&&<a href={r.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#426b7d]">來源 ↗</a>}{r.place_name&&<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([r.place_name,r.city,r.country].filter(Boolean).join(" "))}`} target="_blank" rel="noopener noreferrer" className="text-[#426b7d]">地圖 ↗</a>}</div>
         </div>
       </article>)}</div>}
