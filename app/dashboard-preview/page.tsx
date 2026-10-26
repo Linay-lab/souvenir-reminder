@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import StudioNavigation from "@/app/components/StudioNavigation";
 import { createClient } from "@/utils/supabase/client";
 
 type Trip = { id: string; currency?: string | null; name: string | null; destination: string | null; start_date: string | null; end_date: string | null };
@@ -14,12 +15,12 @@ const destinationParts = (value: string | null) => {
 };
 
 const features = [
-  { icon: "🗓️", name: "行程規劃", detail: "即將推出" },
-  { icon: "🛍️", name: "購物清單", detail: "立即使用", href: "/" },
-  { icon: "📍", name: "景點地圖", detail: "即將推出" },
-  { icon: "✈️", name: "航班住宿", detail: "即將推出" },
-  { icon: "💳", name: "旅費管理", detail: "即將推出" },
-  { icon: "🧳", name: "行李清單", detail: "即將推出" },
+  {icon:"🗓️",name:"行程規劃",detail:"安排每日路線",href:"/itinerary"},
+  {icon:"🛍️",name:"購物清單",detail:"記下想買的好物",href:"/"},
+  {icon:"♡",name:"旅行收藏",detail:"整理喜歡的景點與美食",href:"/collections"},
+  {icon:"💳",name:"旅行錢包",detail:"管理預算與花費",href:"/wallet"},
+  {icon:"◉",name:"個人中心",detail:"帳號與設定",href:"/profile"},
+  {icon:"💌",name:"體驗回饋",detail:"分享你的使用感受",href:"/feedback"},
 ];
 
 export default function TravelDashboardPreview() {
@@ -570,6 +571,7 @@ export default function TravelDashboardPreview() {
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] text-[#34423D]">
+      <StudioNavigation />
       <style>{`
         .travel-studio-bottom {position:fixed;z-index:35;bottom:0;left:0;right:0;display:flex;justify-content:space-around;gap:6px;padding:9px 10px max(10px,env(safe-area-inset-bottom));background:#ffffffef;border-top:1px solid #e7e5df;box-shadow:0 -4px 18px #34423d0a}
         .travel-studio-bottom a {text-align:center;min-width:64px;padding:7px 5px;border-radius:14px;font-size:12px;line-height:1.6}
@@ -582,7 +584,7 @@ export default function TravelDashboardPreview() {
             <p className="text-xl font-bold tracking-tight text-[#16385b]">旅購 <span className="text-sm font-normal text-slate-400">Travel Studio</span></p>
             <p className="mt-1 text-xs text-slate-500">把喜歡的世界，慢慢收進來。</p>
           </div>
-          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">返回現有清單 ↗</a>
+          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">前往購物清單 ↗</a>
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-7 md:px-6">
@@ -813,12 +815,7 @@ export default function TravelDashboardPreview() {
         </section>
       </div>
       <a href="/feedback" className="fixed bottom-20 right-4 z-30 rounded-full border border-[#dfe6dd] bg-[#FAF9F6] px-4 py-3 text-sm font-semibold text-[#426b7d] shadow-lg">💌 Beta 回饋</a>
-      <nav className="travel-studio-bottom" aria-label="旅購導覽">
-        <a href="/dashboard-preview" aria-current="page">⌂<br/>首頁</a>
-        <a href="/collections">♡<br/>收藏庫</a>
-        <a href="/dashboard-preview#my-trips">▤<br/>我的旅行</a>
-        <a href="/profile">◉<br/>個人中心</a>
-      </nav>
+      
     </main>
   );
 }
