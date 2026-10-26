@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import ItemPhotos from "@/app/components/ItemPhotos";
+import StudioNavigation from "@/app/components/StudioNavigation";
 import type { User } from "@supabase/supabase-js";
 
 type Category = "送禮" | "託買" | "自用";
@@ -14,6 +16,7 @@ type Item = {
   category: Category;
   place: string;
   price: number;
+  currency?: string;
   note: string;
   bought: boolean;
 };
@@ -27,6 +30,21 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const supabase = createClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"default" | "unbought" | "price-high" | "price-low">("default");
+  const [filter, setFilter] = useState<
+    "全部" | "未購買" | "已購買" | Category
+  >("全部");
+  const [tripName, setTripName] = useState("我的旅行");
+  const [destination, setDestination] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [tripReady, setTripReady] = useState(false);
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [listError, setListError] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [currencyReady, setCurrencyReady] = useState(false);
+
 
   useEffect(() => {
   const getUser = async () => {
@@ -45,16 +63,33 @@ useEffect(() => {
   if (!authReady || !user) return;
 
   const loadTrip = async () => {
-    const { data, error } = await supabase
+    // Select only trips belonging to the signed-in user.
+    const requestedTripId = new URLSearchParams(window.location.search).get("tripId");
+    // Trip IDs are opaque database identifiers; do not assume they use UUID syntax.
+    // Resolve the requested ID against the signed-in user's own trip list.
+    const { data: ownedTrips, error } = await supabase
       .from("trips")
       .select("*")
       .eq("owner_id", user.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
 
     if (error) {
       console.error("讀取 Supabase 旅程失敗：", error);
+      setListError("讀取旅行清單失敗，請重新整理後再試。");
+      setTripReady(true);
+      setCurrencyReady(true);
+      return;
+    }
+
+    const data = requestedTripId
+      ? ownedTrips?.find((trip) => String(trip.id) === requestedTripId)
+      : ownedTrips?.[0];
+
+    // Never substitute a different trip for an explicit selection.
+    if (requestedTripId && !data) {
+      setListError("找不到你選擇的旅行。請返回旅行首頁重新選擇，避免修改到其他旅行的商品。");
+      setTripReady(true);
+      setCurrencyReady(true);
       return;
     }
 
@@ -98,12 +133,14 @@ useEffect(() => {
 
   if (!user && savedItems) {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore saved local list after user resolution
       setItems(JSON.parse(savedItems));
     } catch {
       console.log("讀取本機清單失敗");
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mark local storage hydration complete
   setStorageReady(true);
 }, [user]);
 
@@ -112,17 +149,12 @@ useEffect(() => {
 
   localStorage.setItem("souvenir-items", JSON.stringify(items));
 }, [items, storageReady, user]);
-  const [filter, setFilter] = useState<
-    "全部" | "未購買" | "已購買" | Category
-  >("全部");
-  const [tripName, setTripName] = useState("我的旅行");
-  const [destination, setDestination] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [tripReady, setTripReady] = useState(false);
-  const [tripId, setTripId] = useState<string | null>(null);
   useEffect(() => {
-  if (!tripId) return;
+  if (!tripId || !user) return;
+  let active = true;
+  // Clear the previous trip while the newly selected list loads.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- prevent showing another trip\u0027s items
+  setItems([]);
 
   const loadItems = async () => {
     const { data, error } = await supabase
@@ -130,8 +162,10 @@ useEffect(() => {
       .select("*")
       .eq("trip_id", tripId);
 
+    if (!active) return;
     if (error) {
       console.error("讀取 Supabase 商品失敗：", error);
+      setListError("無法載入這趟旅行的購物清單，請重新整理再試。");
       return;
     }
 
@@ -143,15 +177,18 @@ useEffect(() => {
   category: row.category as Category,
   place: row.place_name || "尚未設定地點",
   price: Number(row.price ?? 0),
+  currency: row.currency || undefined,
   note: row.note || "",
   bought: row.bought,
 }));
 
 setItems(loadedItems);
+setListError("");
   };
 
-  loadItems();
-}, [tripId]);
+  void loadItems();
+  return () => { active = false; };
+}, [tripId, user]);
   const [showTripEdit, setShowTripEdit] = useState(false);
   const [editTripName, setEditTripName] = useState("");
   const [editDestination, setEditDestination] = useState("");
@@ -169,6 +206,7 @@ setItems(loadedItems);
     try {
       const trip = JSON.parse(savedTrip);
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate anonymous trip settings from local storage
       setTripName(trip.tripName || "我的旅行");
       setDestination(trip.destination || "");
       setStartDate(trip.startDate || "");
@@ -194,17 +232,18 @@ useEffect(() => {
     })
   );
 }, [tripName, destination, startDate, endDate, tripReady, user]);
-  const [currency, setCurrency] = useState("");
-  const [currencyReady, setCurrencyReady] = useState(false);
   useEffect(() => {
   if (user) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- currency initialization after auth resolution
     setCurrencyReady(true);
     return;
   }
 
   const savedCurrency = localStorage.getItem("souvenir-currency");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize persisted currency
   setCurrency(savedCurrency || "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mark currency initialization complete
   setCurrencyReady(true);
 }, [user]);
 
@@ -220,6 +259,7 @@ useEffect(() => {
   const [quantity, setQuantity] = useState(1);
   const [category, setCategory] = useState<Category>("自用");
   const [price, setPrice] = useState<number | "">("");
+  const [itemCurrency, setItemCurrency] = useState("");
   const [place, setPlace] = useState("");
   const [note, setNote] = useState("");
 
@@ -227,11 +267,21 @@ useEffect(() => {
   
 
   const filteredItems = useMemo(() => {
-    if (filter === "全部") return items;
-    if (filter === "未購買") return items.filter((item) => !item.bought);
-    if (filter === "已購買") return items.filter((item) => item.bought);
-    return items.filter((item) => item.category === filter);
-  }, [filter, items]);
+    const query = searchQuery.trim().toLocaleLowerCase();
+    const result = items.filter((item) => {
+      const matchesFilter = filter === "全部"
+        || (filter === "未購買" && !item.bought)
+        || (filter === "已購買" && item.bought)
+        || item.category === filter;
+      const matchesSearch = !query || [item.name, item.forWho, item.place, item.note]
+        .some((value) => value.toLocaleLowerCase().includes(query));
+      return matchesFilter && matchesSearch;
+    });
+    if (sortMode === "unbought") return result.sort((a, b) => Number(a.bought) - Number(b.bought));
+    if (sortMode === "price-high") return result.sort((a, b) => b.price * b.quantity - a.price * a.quantity);
+    if (sortMode === "price-low") return result.sort((a, b) => a.price * a.quantity - b.price * b.quantity);
+    return result;
+  }, [filter, items, searchQuery, sortMode]);
 
  async function toggleBought(id: string) {
   const item = items.find((item) => item.id === id);
@@ -242,10 +292,12 @@ useEffect(() => {
   const { error } = await supabase
     .from("shopping_items")
     .update({ bought: newBought })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("更新購買狀態失敗：", error);
+    setListError("購買狀態更新失敗，請稍後重試。");
     return;
   }
 
@@ -259,15 +311,29 @@ useEffect(() => {
   const { error } = await supabase
     .from("shopping_items")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("刪除商品失敗：", error);
+    setListError("刪除商品失敗，請稍後重試。");
     return;
   }
 
   setItems((prev) => prev.filter((item) => item.id !== id));
 }
+function resetItemForm() {
+  setEditingId(null);
+  setName("");
+  setForWho("");
+  setQuantity(1);
+  setCategory("自用");
+  setPrice("");
+  setItemCurrency("");
+  setPlace("");
+  setNote("");
+}
+
 function startEdit(item: Item) {
   setEditingId(item.id);
   setName(item.name);
@@ -275,6 +341,7 @@ function startEdit(item: Item) {
   setQuantity(item.quantity);
   setCategory(item.category);
   setPrice(item.price === 0 ? "" : item.price);
+  setItemCurrency(item.currency || currency || "TWD");
   setPlace(item.place === "尚未設定地點" ? "" : item.place);
   setNote(item.note);
   setShowAdd(true);
@@ -290,16 +357,19 @@ function startEdit(item: Item) {
     category,
     place_name: place || "尚未設定地點",
     price: price === "" ? 0 : price,
+    currency: itemCurrency || currency || "TWD",
     note,
   };
 
   const { error } = await supabase
     .from("shopping_items")
     .update(updatedItem)
-    .eq("id", editingId);
+    .eq("id", editingId)
+    .eq("trip_id", tripId);
 
   if (error) {
     console.error("編輯商品失敗：", JSON.stringify(error, null, 2));
+    setListError("編輯商品失敗，請稍後重試。");
     return;
   }
 
@@ -314,6 +384,7 @@ function startEdit(item: Item) {
             category,
             place: place || "尚未設定地點",
             price: price === "" ? 0 : price,
+            currency: itemCurrency || currency || "TWD",
             note,
           }
         : item
@@ -333,7 +404,7 @@ function startEdit(item: Item) {
       recipient: forWho || "自己",
       category,
       price: price === "" ? 0 : price,
-      currency: currency || null,
+      currency: itemCurrency || currency || "TWD",
       place_name: place || null,
       note: note || null,
       bought: false,
@@ -343,6 +414,7 @@ function startEdit(item: Item) {
 
   if (error) {
     console.error("新增商品失敗：", error);
+    setListError("新增商品失敗，請稍後重試。");
     return;
   }
 
@@ -356,20 +428,14 @@ function startEdit(item: Item) {
       category: newItem.category as Category,
       place: newItem.place_name || "尚未設定地點",
       price: Number(newItem.price ?? 0),
+      currency: newItem.currency || currency,
       note: newItem.note || "",
       bought: newItem.bought,
     },
   ]);
 }
 
-    setName("");
-    setForWho("");
-    setQuantity(1);
-    setCategory("自用");
-    setPrice("");
-    setPlace("");
-    setNote("");
-    setEditingId(null);
+    resetItemForm();
     setShowAdd(false);
   }
 if (!storageReady || !tripReady || !currencyReady) {
@@ -379,9 +445,21 @@ if (!storageReady || !tripReady || !currencyReady) {
     </main>
   );
 }
+  if (user && !tripId) {
+    return (
+      <main className="min-h-screen bg-[#f8fafc] px-6 py-16 text-slate-800">
+        <div className="mx-auto max-w-lg rounded-3xl bg-white p-8 shadow-sm">
+          <h1 className="text-xl font-bold">無法開啟指定旅行</h1>
+          <p role="alert" className="mt-3 text-sm text-red-700">{listError || "旅行尚未載入，請稍後重新整理。"}</p>
+          <a href="/dashboard-preview" className="mt-6 inline-block rounded-full bg-[#173f68] px-5 py-3 text-sm font-semibold text-white">返回旅行首頁</a>
+        </div>
+      </main>
+    );
+  }
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-slate-800">
-      <header className="border-b bg-white/90 backdrop-blur">
+    <main className="min-h-screen bg-[#FAF9F6] pb-24 text-[#34423D] md:pb-10">
+      <StudioNavigation />
+      <header className="border-b border-[#e7e6de] bg-[#FAF9F6]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div>
             <div className="text-xl font-bold tracking-tight">
@@ -419,31 +497,24 @@ if (!storageReady || !tripReady || !currencyReady) {
         </div>
       </header>
 
+      
+      {user && <div className="mx-auto max-w-6xl px-5 pt-4">
+        <a href="/dashboard-preview" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#173f68] hover:bg-slate-50">← 返回旅行首頁</a>
+      </div>}
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
-        <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-100 via-white to-rose-100 p-6 shadow-sm md:p-8">
+        {listError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{listError}</div>}
+        <section className="overflow-hidden rounded-[28px] border border-[#e3e6dd] bg-gradient-to-br from-[#e8f0f2] via-[#FAF9F6] to-[#f2e8e1] p-6 shadow-sm md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <div className="mb-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium shadow-sm">
-                🇯🇵 旅行清單
+                🛍️ 這趟旅行的購物清單
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
                 {tripName}
               </h1>
-              <button
-               type="button"
-              onClick={() => {
-                setEditTripName(tripName);
-                setEditDestination(destination);
-                setEditStartDate(startDate);
-                setEditEndDate(endDate);
-                setEditCurrency(currency);
-                setShowTripEdit(true);
-              }}
-               className="mt-2 text-sm font-medium text-sky-600 hover:text-sky-700"
-              >
-                {destination || startDate || endDate ? "✏️ 編輯旅行" : "＋ 建立旅行"}
-              </button>
+              <p className="mt-2 text-sm text-[#66746b]">這趟旅行想買的伴手禮，都整理在這裡。</p>
+              <a href="/dashboard-preview" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#426b7d] hover:underline">↗ 切換或管理旅行</a>
 <p className="mt-2 text-sm font-medium text-slate-600">
   📍 {destination || "尚未設定目的地"}
 </p>
@@ -474,7 +545,7 @@ if (!storageReady || !tripReady || !currencyReady) {
               <div className="mt-5 flex items-center gap-3">
                 <div className="h-2 w-48 overflow-hidden rounded-full bg-white">
                   <div
-                    className="h-full rounded-full bg-emerald-400 transition-all"
+                    className="h-full rounded-full bg-[#a5ad96] transition-all"
                     style={{
                       width: `${
                         items.length
@@ -490,9 +561,7 @@ if (!storageReady || !tripReady || !currencyReady) {
               </div>
             </div>
 
-            <button className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5">
-              🔗 分享清單
-            </button>
+            <a href="/collections" className="rounded-2xl border border-[#d9dfd5] bg-white px-5 py-3 text-sm font-semibold text-[#34423D] shadow-sm transition hover:-translate-y-0.5">♡ 從收藏庫找靈感</a>
           </div>
         </section>
 
@@ -501,19 +570,19 @@ if (!storageReady || !tripReady || !currencyReady) {
             icon="🛍️"
             label="全部"
             value={items.length}
-            bg="bg-sky-50"
+            bg="bg-[#e8f0f2]"
           />
           <StatCard
             icon="✅"
             label="已購買"
             value={boughtCount}
-            bg="bg-emerald-50"
+            bg="bg-[#edf0e8]"
           />
           <StatCard
             icon="⏳"
             label="未購買"
             value={items.length - boughtCount}
-            bg="bg-rose-50"
+            bg="bg-[#f4ece7]"
           />
         </section>
 
@@ -553,12 +622,32 @@ if (!storageReady || !tripReady || !currencyReady) {
             </div>
 
             <button
-              onClick={() => setShowAdd(true)}
-              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              onClick={() => { resetItemForm(); setShowAdd(true); }}
+              className="rounded-2xl bg-[#34423D] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#52645a]"
             >
               {items.length === 0 ? "＋ 新增第一個商品" : "＋ 新增商品"}
             </button>
           </div>
+        {items.length > 0 && (
+          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="block">
+              <span className="sr-only">搜尋商品、收件人、地點或備註</span>
+              <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="🔎 搜尋商品、收件人、地點、備註"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400" />
+            </label>
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3">
+              <span className="text-xs text-slate-500">排序</span>
+              <select value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}
+                className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none">
+                <option value="default">原本順序</option>
+                <option value="unbought">未購買優先</option>
+                <option value="price-high">小計高到低</option>
+                <option value="price-low">小計低到高</option>
+              </select>
+            </label>
+          </div>
+        )}
         {items.length > 0 && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
             {(
@@ -585,6 +674,7 @@ if (!storageReady || !tripReady || !currencyReady) {
             ))}
           </div>
         )}
+          {items.length > 0 && filteredItems.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500">找不到符合條件的商品，試著清除搜尋或切換分類。</p>}
           <div className="space-y-3">
             {filteredItems.map((item) => (
               <article
@@ -651,26 +741,41 @@ if (!storageReady || !tripReady || !currencyReady) {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <CategoryBadge category={item.category} />
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
-                        📍 {item.place}
-                      </span>
+                      {item.place && item.place !== "尚未設定地點" ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([item.place, destination].filter(Boolean).join(" "))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`在 Google 地圖搜尋 ${item.place}（開啟新分頁）`}
+                          title="在 Google 地圖搜尋購買地點"
+                          className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          📍 {item.place} · 查看地圖 ↗
+                        </a>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
+                          📍 尚未設定地點
+                        </span>
+                      )}
 
                     </div>
 
+                    {user && tripId && <ItemPhotos itemId={item.id} tripId={tripId} userId={user.id} />}
+
                     {item.price > 0 && (
                       <p className="mt-3 text-sm font-semibold text-slate-700">
-                        {currency
+                        {(item.currency || currency)
   ? new Intl.NumberFormat("zh-TW", {
       style: "currency",
-      currency: currency,
+      currency: item.currency || currency,
       maximumFractionDigits: 0,
     }).format(item.price)
   : item.price.toLocaleString("zh-TW")}
 ／個 ・ 小計{" "}
-{currency
+{(item.currency || currency)
   ? new Intl.NumberFormat("zh-TW", {
       style: "currency",
-      currency: currency,
+      currency: item.currency || currency,
       maximumFractionDigits: 0,
     }).format(item.price * item.quantity)
   : (item.price * item.quantity).toLocaleString("zh-TW")}
@@ -786,6 +891,12 @@ if (!storageReady || !tripReady || !currencyReady) {
     type="button"
     onClick={async () => {
       if (!tripId) return;
+      if ((editCurrency || "TWD") !== currency && items.some((item) => item.price > 0)) {
+        const confirmed = window.confirm(
+          "你正在修改旅行的預設幣別。\n\n已建立商品的金額和原始幣別不會自動換算或改寫；既有預算也會依原幣別保留。\n\n確定只修改這趟旅行之後新增商品的預設幣別嗎？"
+        );
+        if (!confirmed) return;
+      }
 
 const { error } = await supabase
   .from("trips")
@@ -825,7 +936,7 @@ if (error) {
 </h2>
 
               <button
-                onClick={() => setShowAdd(false)}
+                onClick={() => { resetItemForm(); setShowAdd(false); }}
                 className="text-xl text-slate-400"
               >
                 ×
@@ -908,6 +1019,11 @@ if (error) {
   placeholder="例如：1080"
   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-400"
 />
+<label className="mt-4 block text-sm font-medium">商品幣別</label>
+<select value={itemCurrency || currency || "TWD"} onChange={(e) => setItemCurrency(e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3">
+  {["TWD", "JPY", "KRW", "USD", "EUR", "GBP", "THB"].map((code) => <option key={code} value={code}>{code}</option>)}
+</select>
+<p className="mt-1 text-xs text-slate-500">變更幣別不會自動換算金額，請自行確認單價。既有旅行預算不受影響。</p>
 <label className="mt-4 block text-sm font-medium">
   購買地點
 </label>
@@ -918,6 +1034,12 @@ if (error) {
   placeholder="例如：機場、百貨公司、當地商店"
   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-400"
 />
+<div className="mt-2 rounded-2xl border border-[#e4e9e6] bg-[#f5f8f5] p-3">
+  <p className="text-xs leading-5 text-[#53675d]">地點目前以文字儲存。可以先到 Google Maps 搜尋確認，再回來填寫；這不是 Google Places 自動選點功能。</p>
+  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([place.trim() || "商店", destination].filter(Boolean).join(" "))}`}
+     target="_blank" rel="noopener noreferrer"
+     className="mt-2 inline-flex rounded-xl border border-[#b5cad4] bg-white px-3 py-2 text-sm font-semibold text-[#426b7d]">📍 在 Google Maps 搜尋此地點 ↗</a>
+</div>
 <label className="mt-4 block text-sm font-medium">
   備註
 </label>
@@ -937,6 +1059,7 @@ if (error) {
           </div>
         </div>
       )}
+      
     </main>
   );
 }
