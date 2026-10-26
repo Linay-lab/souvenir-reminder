@@ -690,7 +690,7 @@ export default function TravelDashboardPreview() {
               </div>}</div>
           </div>
         </section>}
-        {tripId && <section className="mt-8 rounded-3xl bg-white p-5 shadow-sm" aria-label="旅行購物預算">
+        {tripId && <section id="travel-budget" className="mt-8 scroll-mt-6 rounded-3xl bg-white p-5 shadow-sm" aria-label="旅行購物預算">
           <h2 className="text-xl font-bold">購物預算管理</h2>
           <p className="mt-1 text-sm text-slate-500">每趟旅行、每種幣別獨立設定；金額會儲存在帳號中。</p>
           {budgetError && <p role="alert" className="mt-3 text-sm text-red-600">{budgetError}</p>}
