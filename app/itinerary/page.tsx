@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 import {useSearchParams} from "next/navigation";
 import {Suspense} from "react";
 import {createClient} from "@/utils/supabase/client";
+import StudioNavigation from "@/app/components/StudioNavigation";
 
 type Trip={id:string;name:string|null;start_date:string|null;end_date:string|null};
 type Stop={id:string;trip_id:string;user_id:string;visit_date:string;visit_time:string|null;title:string;place_name:string;address:string;notes:string;sort_order:number};
@@ -43,7 +44,8 @@ function ItineraryContent(){
  if(res.error)setError("儲存失敗："+res.error.message);else{reset();const result=await client.from("itinerary_stops").select("*").eq("trip_id",selected).eq("user_id",userId).order("visit_date").order("visit_time");if(result.error)setError(result.error.message);else setStops((result.data??[]) as Stop[]);}
  setBusy(false);}
  async function remove(s:Stop){if(!window.confirm("確定刪除這個行程？"))return;const {error:err}=await client.from("itinerary_stops").delete().eq("id",s.id).eq("user_id",userId).eq("trip_id",selected);if(err)setError(err.message);else setStops(prev=>prev.filter(x=>x.id!==s.id));}
- return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-16 pt-8 text-[#34423D] sm:px-8"><div className="mx-auto max-w-4xl">
+ return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-16 pt-8 text-[#34423D] sm:px-8">
+ <StudioNavigation /><div className="mx-auto max-w-4xl">
  <a href="/dashboard-preview" className="text-sm font-semibold text-[#527586]">← 返回我的旅行</a>
  <h1 className="mt-4 text-3xl font-bold">🗓️ 每日行程手帳</h1><p className="mt-2 text-sm text-[#718078]">先安排日期與時間，再慢慢把旅行填滿。</p>
  {error&&<p role="alert" className="my-4 rounded-xl bg-[#fff1e9] p-4 text-sm">{error}</p>}
