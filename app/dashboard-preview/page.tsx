@@ -667,7 +667,7 @@ export default function TravelDashboardPreview() {
         )}
         <section className="mt-4" aria-label="旅行常用工具">
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
-            <div className="rounded-2xl border border-[#e6e9e2] bg-[#edf1ec] p-3 text-center"><span className="text-2xl">🗓️</span><p className="mt-1 text-sm font-semibold">行程</p><p className="mt-1 text-[10px] text-[#718079]">規劃中</p></div>
+            <a href={tripId ? `/itinerary?tripId=${encodeURIComponent(tripId)}` : "/itinerary"} className="rounded-2xl border border-[#e6e9e2] bg-[#edf1ec] p-3 text-center"><span className="text-2xl">🗓️</span><p className="mt-1 text-sm font-semibold">行程</p><p className="mt-1 text-[10px] text-[#718079]">每日規劃 →</p></a>
             <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-2xl border border-[#f1e4d8] bg-[#f8eee5] p-3 text-center"><span className="text-2xl">🛍️</span><p className="mt-1 text-sm font-semibold">購物</p><p className="mt-1 text-[10px] text-[#718079]">{activeSummary?.total ?? "—"} 項</p></a>
             <a href="#travel-budget" className="rounded-2xl border border-[#dce8ed] bg-[#e9f0f3] p-3 text-center"><span className="text-2xl">💳</span><p className="mt-1 text-sm font-semibold">錢包</p><p className="mt-1 text-[10px] text-[#718079]">預算管理</p></a>
             <div className="rounded-2xl border border-[#eae4dd] bg-[#eeeae5] p-3 text-center"><span className="text-2xl">📍</span><p className="mt-1 text-sm font-semibold">地點</p><p className="mt-1 text-[10px] text-[#718079]">規劃中</p></div>
