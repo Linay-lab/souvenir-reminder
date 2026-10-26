@@ -13,11 +13,11 @@ create table if not exists public.trip_expenses (
 );
 create index if not exists trip_expenses_trip_date_idx on public.trip_expenses(trip_id,expense_date desc);
 alter table public.trip_expenses enable row level security;
-drop policy if exists "expenses_select_owned_trip" on public.trip;
+drop policy if exists "expenses_select_owned_trip" on public.trip_expenses;
 create policy "expenses_select_owned_trip" on public.trip_expenses for select to authenticated using (user_id=(select auth.uid()) and exists(select 1 from public.trips t where t.id=trip_id and t.owner_id=(select auth.uid())));
-drop policy if exists "expenses_insert_owned_trip" on public.trip;
+drop policy if exists "expenses_insert_owned_trip" on public.trip_expenses;
 create policy "expenses_insert_owned_trip" on public.trip_expenses for insert to authenticated with check (user_id=(select auth.uid()) and exists(select 1 from public.trips t where t.id=trip_id and t.owner_id=(select auth.uid())));
-drop policy if exists "expenses_update_owned_trip" on public.trip;
+drop policy if exists "expenses_update_owned_trip" on public.trip_expenses;
 create policy "expenses_update_owned_trip" on public.trip_expenses for update to authenticated using (user_id=(select auth.uid()) and exists(select 1 from public.trips t where t.id=trip_id and t.owner_id=(select auth.uid()))) with check (user_id=(select auth.uid()) and exists(select 1 from public.trips t where t.id=trip_id and t.owner_id=(select auth.uid())));
-drop policy if exists "expenses_delete_owned_trip" on public.trip;
+drop policy if exists "expenses_delete_owned_trip" on public.trip_expenses;
 create policy "expenses_delete_owned_trip" on public.trip_expenses for delete to authenticated using (user_id=(select auth.uid()) and exists(select 1 from public.trips t where t.id=trip_id and t.owner_id=(select auth.uid())));
