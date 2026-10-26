@@ -591,6 +591,13 @@ export default function TravelDashboardPreview() {
           <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">旅行手帳風格 · 測試版</span>
         </div>
 
+        <div className="mb-5 flex flex-col gap-3 rounded-[24px] border border-[#e7e4dc] bg-gradient-to-r from-[#eef2ed] to-[#f8f2e9] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <p className="text-lg font-bold text-[#34423D]">📮 發現喜歡的東西？</p>
+            <p className="mt-1 text-sm text-[#728079]">把想買、想去的先記下來，下一站再帶著走。</p>
+          </div>
+          <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-[#91B3C3] px-5 py-3 text-sm font-semibold text-[#244A5B] shadow-sm hover:bg-[#A8C4D0]">＋ 新增購物項目 →</a>
+        </div>
         <section className="relative isolate min-h-[260px] overflow-hidden rounded-[28px] bg-[#B5CAD4] text-white shadow-md md:min-h-[350px]">
           <div className="absolute inset-0 bg-gradient-to-br from-[#A5AD96] via-[#B5CAD4] to-[#E5DED3]">
             <div className="absolute -right-16 top-8 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
@@ -658,6 +665,14 @@ export default function TravelDashboardPreview() {
             </div>
           </div>
         )}
+        <section className="mt-4" aria-label="旅行常用工具">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            <div className="rounded-2xl border border-[#e6e9e2] bg-[#edf1ec] p-3 text-center"><span className="text-2xl">🗓️</span><p className="mt-1 text-sm font-semibold">行程</p><p className="mt-1 text-[10px] text-[#718079]">規劃中</p></div>
+            <a href={tripId ? `/?tripId=${encodeURIComponent(tripId)}` : "/"} className="rounded-2xl border border-[#f1e4d8] bg-[#f8eee5] p-3 text-center"><span className="text-2xl">🛍️</span><p className="mt-1 text-sm font-semibold">購物</p><p className="mt-1 text-[10px] text-[#718079]">{activeSummary?.total ?? "—"} 項</p></a>
+            <a href="#travel-budget" className="rounded-2xl border border-[#dce8ed] bg-[#e9f0f3] p-3 text-center"><span className="text-2xl">💳</span><p className="mt-1 text-sm font-semibold">錢包</p><p className="mt-1 text-[10px] text-[#718079]">預算管理</p></a>
+            <div className="rounded-2xl border border-[#eae4dd] bg-[#eeeae5] p-3 text-center"><span className="text-2xl">📍</span><p className="mt-1 text-sm font-semibold">地點</p><p className="mt-1 text-[10px] text-[#718079]">規劃中</p></div>
+          </div>
+        </section>
         {tripId && <section className="mt-8" aria-label="目前旅行購物進度">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-xl font-bold">這趟旅行的購物進度</h2>
