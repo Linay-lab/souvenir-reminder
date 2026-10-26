@@ -53,10 +53,10 @@ export default function CollectionsPage() {
     setBusy(true);setMessage("");
     let imageUrl=form.image_url;
     if(photo){
-      if(!photo.type.startsWith("image/")){setMessage("請選擇圖片檔案。");setBusy(false);return;}
+      if(!["image/jpeg","image/png","image/webp","image/gif"].includes(photo.type)){setMessage("請選擇圖片檔案。");setBusy(false);return;}
       if(photo.size>8*1024*1024){setMessage("圖片請勿超過 8 MB。");setBusy(false);return;}
-      const extension=(photo.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
-      const key=`${userId}/${crypto.randomUUID()}.${extension||"jpg"}`;
+      const extension=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"} as Record<string,string>)[photo.type];
+      const key=`${userId}/${crypto.randomUUID()}.${extension}`;
       const uploaded=await db.storage.from("collection-photos").upload(key,photo,{contentType:photo.type,upsert:false});
       if(uploaded.error){setMessage("照片上傳失敗："+uploaded.error.message);setBusy(false);return;}
       const {data}=db.storage.from("collection-photos").getPublicUrl(key);
@@ -80,7 +80,7 @@ export default function CollectionsPage() {
       const dateInput=window.prompt("安排在哪一天？請輸入 YYYY-MM-DD（例如 2027-05-16）");
       if(dateInput===null){setCopying(null);return;}
       const date=dateInput.trim();
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date){setCopying(null);setMessage("請輸入有效的日期，格式為 YYYY-MM-DD。");return;}
       const {error}=await db.from("itinerary_stops").insert({
         user_id:userId,trip_id:chosen,visit_date:date,title:r.title,
         place_name:r.place_name||"",address:"",notes:[r.notes,r.source_url].filter(Boolean).join("\n"),
@@ -117,8 +117,8 @@ export default function CollectionsPage() {
         <label className="text-sm">名稱 *<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="例如：博多車站伴手禮" className="mt-1 w-full rounded-xl border p-3"/></label>
         <label className="text-sm">分類<select value={form.kind} onChange={e=>setForm({...form,kind:e.target.value as Kind})} className="mt-1 w-full rounded-xl border p-3">{kinds.map(k=><option key={k}>{k}</option>)}</select></label>
         {(["country","city","place_name","source_url","image_url"] as const).map((key)=><label key={key} className="text-sm">{{country:"國家",city:"城市",place_name:"地點名稱",source_url:"來源網址",image_url:"圖片網址"}[key]}<input type={key.endsWith("url")?"url":"text"} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} className="mt-1 w-full rounded-xl border p-3"/></label>)}
-        <label className="sm:col-span-2 text-sm">從裝置上傳收藏照片（JPG、PNG、WebP，最多 8 MB）
-          <input type="file" accept="image/*" onChange={e=>setPhoto(e.target.files?.[0]||null)} className="mt-2 block w-full rounded-xl border border-[#e4e7e2] bg-[#f8faf7] p-3 text-sm"/>
+        <label className="sm:col-span-2 text-sm">從裝置上傳收藏照片（JPG、PNG、WebP、GIF，最多 8 MB）
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>setPhoto(e.target.files?.[0]||null)} className="mt-2 block w-full rounded-xl border border-[#e4e7e2] bg-[#f8faf7] p-3 text-sm"/>
           <span className="mt-1 block text-xs text-[#7a8580]">照片會儲存在私人帳號路徑，並以公開圖片網址顯示；請勿上傳含敏感個資的照片。</span>
         </label>
         <label className="sm:col-span-2 text-sm">備註<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} className="mt-1 w-full rounded-xl border p-3"/></label>
