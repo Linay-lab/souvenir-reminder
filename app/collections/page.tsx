@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
+import StudioNavigation from "@/app/components/StudioNavigation";
 
 type TripOption = { id:string; name:string|null; currency:string|null };
 type Kind = "商品" | "景點" | "美食" | "商店" | "其他";
@@ -106,6 +107,7 @@ export default function CollectionsPage() {
     if(error)setMessage("刪除失敗："+error.message);else await reload(userId);
   }
   return <main className="min-h-screen bg-[#FAF9F6] px-4 pb-28 pt-8 text-[#34423D] sm:px-8">
+ <StudioNavigation />
     <div className="mx-auto max-w-5xl">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div><a href="/dashboard-preview" className="text-xs font-semibold tracking-widest text-[#7897A0]">TRAVEL STUDIO · 旅購</a><h1 className="mt-2 text-3xl font-bold">我的靈感收藏庫 ♡</h1><p className="mt-2 text-sm text-[#77837C]">喜歡的商品、景點與美食，先收藏起來。無須先建立旅行。</p></div>
