@@ -29,7 +29,7 @@ function ItineraryContent(){
   const available=(data??[]) as Trip[];setTrips(available);
   setSelected(available.find(t=>t.id===requested)?.id||available[0]?.id||"");setLoading(false);
  })();return()=>{active=false};},[requested]);
- useEffect(()=>{if(!userId||!selected){setStops([]);return;}let active=true;
+ useEffect(()=>{if(!userId||!selected)return;let active=true;
  (async()=>{setError("");const {data,error:err}=await client.from("itinerary_stops").select("*").eq("trip_id",selected).eq("user_id",userId).order("visit_date",{ascending:true}).order("visit_time",{ascending:true}).order("sort_order",{ascending:true});
  if(!active)return;if(err){setError("行程資料表尚未啟用，或讀取失敗："+err.message);setStops([]);}else setStops((data??[]) as Stop[]);
  })();return()=>{active=false};},[userId,selected]);
