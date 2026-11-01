@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -23,26 +24,157 @@ const initialItems: Item[] = [];
 export default function Home() {
   const [items, setItems] = useState<Item[]>(initialItems);
   const [storageReady, setStorageReady] = useState(false);
-
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const supabase = createClient();
+  const [loadError, setLoadError] = useState("");
+  const [itemsReady, setItemsReady] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<
+    "全部" | "未購買" | "已購買" | Category
+  >("全部");
+  const [tripName, setTripName] = useState("我的旅行");
+  const [destination, setDestination] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [tripReady, setTripReady] = useState(false);
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [showTripEdit, setShowTripEdit] = useState(false);
+  const [editTripName, setEditTripName] = useState("");
+  const [editDestination, setEditDestination] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editCurrency, setEditCurrency] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [currencyReady, setCurrencyReady] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [forWho, setForWho] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [category, setCategory] = useState<Category>("自用");
+  const [price, setPrice] = useState<number | "">("");
+  const [place, setPlace] = useState("");
+  const [note, setNote] = useState("");
+
+
+  const requests = useRef(new Set<AbortController>());
+  const generation = useRef(0);
+  const mutationPending = useRef(false);
+  const verifiedUserId = useRef<string | null | undefined>(undefined);
+  const sessionChanging = useRef(false);
+  const supabase = useMemo(() => createClient(), []);
+  const invalidateSession = useCallback(() => {
+    sessionChanging.current = true;
+    generation.current++;
+    requests.current.forEach(request => request.abort());
+    requests.current.clear();
+    verifiedUserId.current = undefined;
+    mutationPending.current = false;
+    setAuthReady(false);
+    setUser(null);
+    setItems([]);
+    setTripId(null);
+    setTripReady(false);
+    setItemsReady(false);
+    setStorageReady(false);
+    setCurrencyReady(false);
+    setTripName("我的旅行"); setDestination(""); setStartDate(""); setEndDate(""); setCurrency("");
+    setShowAdd(false); setShowTripEdit(false); setEditingId(null);
+    setName(""); setForWho(""); setQuantity(1); setCategory("自用"); setPrice(""); setPlace(""); setNote("");
+    setEditTripName(""); setEditDestination(""); setEditStartDate(""); setEditEndDate(""); setEditCurrency("");
+    setFilter("全部"); setSaving(false); setActionError(""); setLoadError("");
+  }, []);
+
+
 
   useEffect(() => {
+  let active = true;
+  let announcedUserId: string | null | undefined;
+  const leavePage = (path: string) => {
+    invalidateSession();
+    window.location.replace(path);
+  };
   const getUser = async () => {
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser();
 
+    if (!active || sessionChanging.current) return;
+    if (error && error.name !== "AuthSessionMissingError") {
+      setLoadError("無法確認登入狀態，請重試或重新登入。");
+      return;
+    }
+    if (announcedUserId !== undefined && announcedUserId !== (user?.id ?? null)) {
+      leavePage("/");
+      return;
+    }
+    verifiedUserId.current = user?.id ?? null;
+    if (!user) {
+      try {
+        const savedItems = JSON.parse(localStorage.getItem("souvenir-items") || "[]");
+        if (!Array.isArray(savedItems) || !savedItems.every(item =>
+          item && typeof item.id === "string" && typeof item.name === "string" &&
+          Number.isInteger(item.quantity) && item.quantity > 0 &&
+          typeof item.bought === "boolean" &&
+          ["送禮", "託買", "自用"].includes(item.category) &&
+          (item.price === undefined || (Number.isFinite(item.price) && item.price >= 0)) &&
+          [item.forWho, item.place, item.note].every(value => value === undefined || typeof value === "string"))) {
+          throw new Error("本機商品資料格式錯誤");
+        }
+        const savedTrip = JSON.parse(localStorage.getItem("souvenir-trip") || "{}");
+        if (!savedTrip || typeof savedTrip !== "object" || Array.isArray(savedTrip)) throw new Error("本機旅行資料格式錯誤");
+        if (![savedTrip.tripName, savedTrip.destination, savedTrip.startDate, savedTrip.endDate].every(value => value === undefined || typeof value === "string")) throw new Error("本機旅行欄位格式錯誤");
+        const savedCurrency = localStorage.getItem("souvenir-currency") || "";
+        if (savedCurrency && !/^[A-Z]{3}$/.test(savedCurrency)) throw new Error("本機幣別格式錯誤");
+        setItems(savedItems);
+        setTripName(savedTrip.tripName || "我的旅行");
+        setDestination(savedTrip.destination || "");
+        setStartDate(savedTrip.startDate || "");
+        setEndDate(savedTrip.endDate || "");
+        setCurrency(savedCurrency);
+        setTripReady(true);
+      } catch {
+        setLoadError("無法讀取這台裝置的本機資料，資料仍保留。你可以重試或前往登入。");
+        return;
+      }
+    }
+    setStorageReady(true);
+    setCurrencyReady(true);
     setUser(user);
     setAuthReady(true);
   };
 
-  getUser();
-}, []);
+  getUser().catch(() => {
+    if (active && !sessionChanging.current) setLoadError("無法確認登入狀態，請重試或重新登入。");
+  });
+  // Leave the page on sign-out (including another tab). Do not turn cloud
+  // state into guest state: the guest persistence effects must never see it.
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (!active || sessionChanging.current) return;
+    if (event === "SIGNED_OUT") {
+      leavePage("/login");
+    } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      announcedUserId = session?.user.id ?? null;
+      if (verifiedUserId.current !== undefined && verifiedUserId.current !== announcedUserId) {
+        leavePage("/");
+      }
+    }
+  });
+  return () => { active = false; subscription.unsubscribe(); };
+}, [supabase, invalidateSession]);
 
 useEffect(() => {
   if (!authReady || !user) return;
+  let active = true;
+  const controller = new AbortController();
+  const currentGeneration = generation.current;
+  const accountId = user.id;
+  const pendingRequests = requests.current;
+  pendingRequests.add(controller);
+  const isCurrent = () => active && !controller.signal.aborted && !sessionChanging.current &&
+    generation.current === currentGeneration && verifiedUserId.current === accountId;
 
   const loadTrip = async () => {
     const { data, error } = await supabase
@@ -51,10 +183,11 @@ useEffect(() => {
       .eq("owner_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
-      .maybeSingle();
+      .abortSignal(controller.signal).maybeSingle();
 
+    if (!isCurrent()) return;
     if (error) {
-      console.error("讀取 Supabase 旅程失敗：", error);
+      setLoadError("無法讀取旅行，請檢查連線後重試。");
       return;
     }
 
@@ -71,17 +204,18 @@ useEffect(() => {
     .from("trips")
     .insert({
       owner_id: user.id,
-      name: tripName,
-      destination: destination || null,
-      start_date: startDate || null,
-      end_date: endDate || null,
-      currency: currency || "TWD",
+      name: "我的旅行",
+      destination: null,
+      start_date: null,
+      end_date: null,
+      currency: "TWD",
     })
     .select()
-    .single();
+    .abortSignal(controller.signal).single();
 
-  if (insertError) {
-    console.error("建立 Supabase 旅程失敗：", insertError);
+  if (!isCurrent()) return;
+  if (insertError || !newTrip?.id) {
+    setLoadError("無法建立旅行，請檢查連線後重試。");
     return;
   }
 
@@ -90,48 +224,38 @@ useEffect(() => {
 }
   };
 
-  loadTrip();
-}, [authReady, user]);
+  loadTrip().catch(() => {
+    if (isCurrent()) setLoadError("無法載入旅行，請檢查連線後重試。");
+  });
+  return () => { active = false; controller.abort(); pendingRequests.delete(controller); };
+}, [authReady, user, supabase]);
+
 
 useEffect(() => {
-  const savedItems = localStorage.getItem("souvenir-items");
-
-  if (!user && savedItems) {
-    try {
-      setItems(JSON.parse(savedItems));
-    } catch {
-      console.log("讀取本機清單失敗");
-    }
-  }
-
-  setStorageReady(true);
-}, [user]);
-
-useEffect(() => {
-  if (!storageReady || user) return;
+  if (!authReady || !storageReady || user || sessionChanging.current || verifiedUserId.current !== null) return;
 
   localStorage.setItem("souvenir-items", JSON.stringify(items));
-}, [items, storageReady, user]);
-  const [filter, setFilter] = useState<
-    "全部" | "未購買" | "已購買" | Category
-  >("全部");
-  const [tripName, setTripName] = useState("我的旅行");
-  const [destination, setDestination] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [tripReady, setTripReady] = useState(false);
-  const [tripId, setTripId] = useState<string | null>(null);
+}, [items, authReady, storageReady, user]);
   useEffect(() => {
-  if (!tripId) return;
+  if (!authReady || !user || !tripId) return;
+  let active = true;
+  const controller = new AbortController();
+  const currentGeneration = generation.current;
+  const accountId = user.id;
+  const pendingRequests = requests.current;
+  pendingRequests.add(controller);
+  const isCurrent = () => active && !controller.signal.aborted && !sessionChanging.current &&
+    generation.current === currentGeneration && verifiedUserId.current === accountId;
 
   const loadItems = async () => {
     const { data, error } = await supabase
       .from("shopping_items")
       .select("*")
-      .eq("trip_id", tripId);
+      .eq("trip_id", tripId).abortSignal(controller.signal);
 
+    if (!isCurrent()) return;
     if (error) {
-      console.error("讀取 Supabase 商品失敗：", error);
+      setLoadError("無法讀取商品，請檢查連線後重試。");
       return;
     }
 
@@ -148,41 +272,17 @@ useEffect(() => {
 }));
 
 setItems(loadedItems);
+setItemsReady(true);
   };
 
-  loadItems();
-}, [tripId]);
-  const [showTripEdit, setShowTripEdit] = useState(false);
-  const [editTripName, setEditTripName] = useState("");
-  const [editDestination, setEditDestination] = useState("");
-  const [editStartDate, setEditStartDate] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
-  const [editCurrency, setEditCurrency] = useState("");
-  useEffect(() => {
-  if (!authReady || user) {
-  return;
-}
-
-  const savedTrip = localStorage.getItem("souvenir-trip");
-
-  if (savedTrip) {
-    try {
-      const trip = JSON.parse(savedTrip);
-
-      setTripName(trip.tripName || "我的旅行");
-      setDestination(trip.destination || "");
-      setStartDate(trip.startDate || "");
-      setEndDate(trip.endDate || "");
-    } catch {
-      console.log("讀取旅行資料失敗");
-    }
-  }
-
-  setTripReady(true);
-}, [authReady, user]);
+  loadItems().catch(() => {
+    if (isCurrent()) setLoadError("無法讀取商品，請檢查連線後重試。");
+  });
+  return () => { active = false; controller.abort(); pendingRequests.delete(controller); };
+}, [authReady, user, tripId, supabase]);
 
 useEffect(() => {
-  if (!tripReady || user) return;
+  if (!authReady || !tripReady || user || sessionChanging.current || verifiedUserId.current !== null) return;
 
   localStorage.setItem(
     "souvenir-trip",
@@ -193,35 +293,39 @@ useEffect(() => {
       endDate,
     })
   );
-}, [tripName, destination, startDate, endDate, tripReady, user]);
-  const [currency, setCurrency] = useState("");
-  const [currencyReady, setCurrencyReady] = useState(false);
-  useEffect(() => {
-  if (user) {
-    setCurrencyReady(true);
-    return;
-  }
-
-  const savedCurrency = localStorage.getItem("souvenir-currency");
-
-  setCurrency(savedCurrency || "");
-  setCurrencyReady(true);
-}, [user]);
+}, [tripName, destination, startDate, endDate, tripReady, authReady, user]);
 
 useEffect(() => {
-  if (!currencyReady || user) return;
+  if (!authReady || !currencyReady || user || sessionChanging.current || verifiedUserId.current !== null) return;
 
   localStorage.setItem("souvenir-currency", currency);
-}, [currency, currencyReady, user]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [forWho, setForWho] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [category, setCategory] = useState<Category>("自用");
-  const [price, setPrice] = useState<number | "">("");
-  const [place, setPlace] = useState("");
-  const [note, setNote] = useState("");
+}, [currency, currencyReady, authReady, user]);
+
+  async function runItemAction(action: (isCurrent: () => boolean, signal: AbortSignal) => Promise<void>) {
+    if (mutationPending.current) return;
+    if (sessionChanging.current || !authReady || !user || verifiedUserId.current !== user.id || !tripId || !itemsReady || loadError) {
+      setActionError("請先登入並載入旅行，再操作雲端資料。");
+      return;
+    }
+    const currentGeneration = generation.current;
+    const accountId = user.id;
+    const controller = new AbortController();
+    const isCurrent = () => !sessionChanging.current && !controller.signal.aborted &&
+      generation.current === currentGeneration && verifiedUserId.current === accountId;
+    requests.current.add(controller);
+    mutationPending.current = true;
+    setSaving(true);
+    setActionError("");
+    try {
+      await action(isCurrent, controller.signal);
+    } catch {
+      if (isCurrent()) setActionError("未能完成操作，請保留輸入並檢查連線後再試。");
+    } finally {
+      requests.current.delete(controller);
+      if (isCurrent()) { mutationPending.current = false; setSaving(false); }
+    }
+  }
+
 
   const boughtCount = items.filter((item) => item.bought).length;
   
@@ -234,6 +338,7 @@ useEffect(() => {
   }, [filter, items]);
 
  async function toggleBought(id: string) {
+  return runItemAction(async (isCurrent, signal) => {
   const item = items.find((item) => item.id === id);
   if (!item) return;
 
@@ -242,8 +347,9 @@ useEffect(() => {
   const { error } = await supabase
     .from("shopping_items")
     .update({ bought: newBought })
-    .eq("id", id);
+    .eq("id", id).eq("trip_id", tripId!).abortSignal(signal);
 
+  if (!isCurrent()) return;
   if (error) {
     console.error("更新購買狀態失敗：", error);
     return;
@@ -254,19 +360,23 @@ useEffect(() => {
       item.id === id ? { ...item, bought: newBought } : item
     )
   );
+  });
 }
   async function deleteItem(id: string) {
+  return runItemAction(async (isCurrent, signal) => {
   const { error } = await supabase
     .from("shopping_items")
     .delete()
-    .eq("id", id);
+    .eq("id", id).eq("trip_id", tripId!).abortSignal(signal);
 
+  if (!isCurrent()) return;
   if (error) {
     console.error("刪除商品失敗：", error);
     return;
   }
 
   setItems((prev) => prev.filter((item) => item.id !== id));
+  });
 }
 function startEdit(item: Item) {
   setEditingId(item.id);
@@ -280,6 +390,7 @@ function startEdit(item: Item) {
   setShowAdd(true);
 }
   async function addItem() {
+  return runItemAction(async (isCurrent, signal) => {
     if (!name.trim()) return;
 
  if (editingId !== null) {
@@ -296,8 +407,9 @@ function startEdit(item: Item) {
   const { error } = await supabase
     .from("shopping_items")
     .update(updatedItem)
-    .eq("id", editingId);
+    .eq("id", editingId).eq("trip_id", tripId!).abortSignal(signal);
 
+  if (!isCurrent()) return;
   if (error) {
     console.error("編輯商品失敗：", JSON.stringify(error, null, 2));
     return;
@@ -339,8 +451,9 @@ function startEdit(item: Item) {
       bought: false,
     })
     .select()
-    .single();
+    .abortSignal(signal).single();
 
+  if (!isCurrent()) return;
   if (error) {
     console.error("新增商品失敗：", error);
     return;
@@ -371,8 +484,20 @@ function startEdit(item: Item) {
     setNote("");
     setEditingId(null);
     setShowAdd(false);
-  }
-if (!storageReady || !tripReady || !currencyReady) {
+      });
+}
+if (loadError) {
+  return (
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl bg-white p-6 shadow-sm">
+        <p role="alert" className="text-rose-700">{loadError}</p>
+        <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-white">重新載入</button>
+        <Link href="/login" className="ml-4 text-blue-700">前往登入</Link>
+      </div>
+    </main>
+  );
+}
+if (!authReady || !storageReady || !tripReady || !currencyReady || (user && !itemsReady)) {
   return (
     <main className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
       <div className="text-sm text-slate-400">旅程載入中...</div>
@@ -398,28 +523,30 @@ if (!storageReady || !tripReady || !currencyReady) {
   <button
     type="button"
     onClick={async () => {
-      await supabase.auth.signOut();
-      setUser(null);
+      invalidateSession();
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) { setLoadError("無法確認登出完成，請重新載入確認登入狀態。"); return; }
+        window.location.replace("/login");
+      } catch { setLoadError("無法確認登出完成，請重新載入確認登入狀態。"); }
     }}
     className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
   >
     登出
   </button>
 ) : (
-  <button
-    type="button"
-    onClick={() => {
-      window.location.href = "/login";
-    }}
+  <Link
+    href="/login"
     className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
   >
     登入
-  </button>
+  </Link>
 )}
         </div>
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
+        {actionError && !showAdd && <p role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-rose-700">{actionError}</p>}
         <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-100 via-white to-rose-100 p-6 shadow-sm md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
@@ -595,6 +722,8 @@ if (!storageReady || !tripReady || !currencyReady) {
               >
                 <div className="flex items-start gap-4">
                   <button
+                    aria-label={item.bought ? "標記為未購買" : "標記為已購買"}
+                    disabled={saving}
                     onClick={() => toggleBought(item.id)}
                     className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
                       item.bought
@@ -785,7 +914,8 @@ if (!storageReady || !tripReady || !currencyReady) {
   <button
     type="button"
     onClick={async () => {
-      if (!tripId) return;
+      return runItemAction(async (isCurrent, signal) => {
+      if (!tripId || !user) return;
 
 const { error } = await supabase
   .from("trips")
@@ -796,7 +926,9 @@ const { error } = await supabase
     end_date: editEndDate || null,
     currency: editCurrency || "TWD",
   })
-  .eq("id", tripId);
+  .eq("id", tripId).eq("owner_id", user.id).abortSignal(signal);
+
+if (!isCurrent()) return;
 
 if (error) {
   console.error("更新旅程失敗：", JSON.stringify(error, null, 2));
@@ -808,6 +940,7 @@ if (error) {
       setEndDate(editEndDate);
       setCurrency(editCurrency);
       setShowTripEdit(false);
+      });
     }}
     className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white"
   >
@@ -819,7 +952,9 @@ if (error) {
 )}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 backdrop-blur-sm md:items-center md:p-6">
-        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl md:rounded-[28px]">            <div className="mb-5 flex items-center justify-between">
+        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl md:rounded-[28px]">
+          <fieldset disabled={saving}>
+            <div className="mb-5 flex items-center justify-between">
               <h2 className="text-xl font-bold">
   {editingId !== null ? "編輯商品" : "新增想買的東西"}
 </h2>
@@ -930,10 +1065,13 @@ if (error) {
 />
             <button
               onClick={addItem}
+              disabled={saving}
               className="mt-6 w-full rounded-2xl bg-blue-600 py-3.5 font-semibold text-white"
             >
-              {editingId !== null ? "儲存修改" : "加入清單"}
+              {saving ? "儲存中..." : editingId !== null ? "儲存修改" : "加入清單"}
             </button>
+            {actionError && <p role="alert" className="mt-3 text-sm text-rose-700">{actionError}</p>}
+          </fieldset>
           </div>
         </div>
       )}
